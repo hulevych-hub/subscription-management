@@ -8,7 +8,7 @@ import com.example.subscription_manager.data.entity.SubscriptionEntity
 
 @Database(
     entities = [SubscriptionEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(SubscriptionTypeConverters::class)

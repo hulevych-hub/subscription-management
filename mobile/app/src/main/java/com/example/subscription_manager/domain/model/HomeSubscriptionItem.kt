@@ -16,5 +16,6 @@ enum class SortBucket {
 data class HomeSubscriptionItem(
     val subscription: Subscription,
     val status: PaymentStatus,
-    val sortBucket: SortBucket
+    val sortBucket: SortBucket,
+    val formattedAmount: String
 )

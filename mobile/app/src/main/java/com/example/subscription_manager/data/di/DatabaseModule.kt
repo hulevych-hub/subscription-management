@@ -19,11 +19,9 @@ object DatabaseModule {
     fun provideAppDatabase(
         @ApplicationContext context: Context
     ): AppDatabase {
-        return Room.databaseBuilder(
-            context = context,
-            klass = AppDatabase::class.java,
-            name = "subscription_manager.db"
-        ).build()
+        return Room.databaseBuilder(context, AppDatabase::class.java, "your_db_name")
+            .fallbackToDestructiveMigration() // This will clear the data and recreate the table
+            .build()
     }
 
     @Provides

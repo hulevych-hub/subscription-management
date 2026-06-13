@@ -108,7 +108,9 @@ object DateCalculator {
         return HomeSubscriptionItem(
             subscription = subscription,
             status = paymentStatus(subscription.isPaid, subscription.nextPaymentDate),
-            sortBucket = sortBucket(subscription.isPaid, subscription.nextPaymentDate)
+            sortBucket = sortBucket(subscription.isPaid, subscription.nextPaymentDate),
+            // Add this line to satisfy the new requirement:
+            formattedAmount = String.format("%.2f", subscription.amount)
         )
     }
 

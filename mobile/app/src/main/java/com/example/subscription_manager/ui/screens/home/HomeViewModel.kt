@@ -17,7 +17,8 @@ import javax.inject.Inject
 
 data class HomeUiState(
     val items: List<HomeSubscriptionItem> = emptyList(),
-    val isLoading: Boolean = true
+    val isLoading: Boolean = true,
+    val totalSpend: Double = 0.0 // Added for the Dashboard Header
 )
 
 @HiltViewModel
@@ -30,15 +31,36 @@ class HomeViewModel @Inject constructor(
 
     val state = getSubscriptionsUseCase()
         .map { subscriptions ->
+            // 1. Map each subscription to HomeSubscriptionItem
+
+            val homeItems = subscriptions.map { sub ->
+                val item = DateCalculator.toHomeItem(sub)
+                // If the item needs a formattedAmount, we ensure it's set here
+                // or updated if DateCalculator doesn't already provide it
+                item.copy(
+                    formattedAmount = sub.amount.toString()
+                )
+            }.sortedWith(
+                compareBy<HomeSubscriptionItem> { it.sortBucket.ordinal }
+                    .thenBy { it.subscription.nextPaymentDate }
+                    .thenBy { it.subscription.name.lowercase() }
+            )
+
+            // 2. Calculate total spend based on the formatted amounts
+            val total = homeItems.sumOf { item ->
+                // This handles it regardless of whether amount is a String or a Number
+                val amount = item.subscription.amount
+                when (amount) {
+                    is Number -> amount.toDouble()
+                    is String -> amount.toDoubleOrNull() ?: 0.0
+                    else -> 0.0
+                }
+            }
+
             HomeUiState(
-                items = subscriptions
-                    .map { DateCalculator.toHomeItem(it) }
-                    .sortedWith(
-                        compareBy<HomeSubscriptionItem> { it.sortBucket.ordinal }
-                            .thenBy { it.subscription.nextPaymentDate }
-                            .thenBy { it.subscription.name.lowercase() }
-                    ),
-                isLoading = false
+                items = homeItems,
+                isLoading = false,
+                totalSpend = total
             )
         }
         .stateIn(

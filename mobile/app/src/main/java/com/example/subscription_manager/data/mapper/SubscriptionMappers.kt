@@ -35,7 +35,8 @@ fun SubscriptionEntity.toDomain(): Subscription {
         lastPaidAt = lastPaidAtEpochMillis,
         lastReminderCycleKey = lastReminderCycleKey,
         nextPaymentDate = nextPaymentDate,
-        willRenew = willRenew
+        willRenew = willRenew,
+        amount = amount
     )
 }
 

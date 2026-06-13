@@ -36,5 +36,7 @@ data class SubscriptionEntity(
     @ColumnInfo(name = "created_at_epoch_millis")
     val createdAtEpochMillis: Long,
     @ColumnInfo(name = "updated_at_epoch_millis")
-    val updatedAtEpochMillis: Long
+    val updatedAtEpochMillis: Long,
+    @ColumnInfo(name = "amount")
+    val amount: Double = 0.0,
 )
