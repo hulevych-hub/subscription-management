@@ -1,6 +1,7 @@
 package com.example.subscription_manager.notification
 
 import android.Manifest
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -80,6 +81,7 @@ class NotificationPublisher @Inject constructor(
             .setStyle(NotificationCompat.BigTextStyle().bigText("$reminderText Payment date: $paymentDateText."))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setContentIntent(openAppPendingIntent)
             .addAction(
                 NotificationCompat.Action.Builder(
@@ -124,6 +126,7 @@ class NotificationPublisher @Inject constructor(
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             description = "Reminds you before subscription payments are due."
+            setLockscreenVisibility(Notification.VISIBILITY_PUBLIC)
         }
 
         val manager = context.getSystemService(NotificationManager::class.java)
