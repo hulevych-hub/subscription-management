@@ -45,6 +45,7 @@ kotlin {
 }
 
 dependencies {
+    implementation(libs.androidx.material3)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs_nio:2.1.0")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)

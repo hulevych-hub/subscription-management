@@ -50,9 +50,11 @@ import com.example.subscription_manager.domain.utils.DateCalculator
 import com.example.subscription_manager.ui.theme.DeepBlue
 import com.example.subscription_manager.ui.theme.DeepGreen
 import com.example.subscription_manager.ui.theme.DeepOrange
+import com.example.subscription_manager.ui.theme.DeepPurple
 import com.example.subscription_manager.ui.theme.SoftBlue
 import com.example.subscription_manager.ui.theme.SoftGreen
 import com.example.subscription_manager.ui.theme.SoftOrange
+import com.example.subscription_manager.ui.theme.SoftPurple
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.absoluteValue
@@ -108,9 +110,15 @@ fun HomeScreen(
                 } else {
                     DashboardHeader(
                         total = state.totalSpend,
-                        totalCount = state.items.size,
-                        dueCount = state.items.count { it.status == PaymentStatus.DUE_SOON || it.status == PaymentStatus.OVERDUE },
-                        paidCount = state.items.count { it.status == PaymentStatus.PAID }
+                        totalCount = state.totalCount,
+                        dueCount = state.dueSoonCount,
+                        thisMonthCount = state.thisMonthCount,
+                        paidCount = state.paidCount,
+                        activeFilter = state.activeFilter,
+                        onSubscriptionsClick = { viewModel.toggleFilter(HomeFilter.ALL) },
+                        onThisMonthClick = { viewModel.toggleFilter(HomeFilter.THIS_MONTH) },
+                        onDueSoonClick = { viewModel.toggleFilter(HomeFilter.DUE_SOON) },
+                        onPaidClick = { viewModel.toggleFilter(HomeFilter.PAID) }
                     )
                 }
             }
@@ -126,6 +134,7 @@ fun HomeScreen(
                     item = item,
                     onToggleRenewal = { viewModel.toggleRenewal(item.subscription.id) },
                     onMarkPaid = { viewModel.markPaid(item.subscription.id) },
+                    onMarkUnpaid = { viewModel.markUnpaid(item.subscription.id) },
                     onClick = { onEditSubscription(item.subscription.id) }
                 )
             }
@@ -138,7 +147,13 @@ private fun DashboardHeader(
     total: Double,
     totalCount: Int,
     dueCount: Int,
-    paidCount: Int
+    thisMonthCount: Int,
+    paidCount: Int,
+    activeFilter: HomeFilter,
+    onSubscriptionsClick: () -> Unit,
+    onThisMonthClick: () -> Unit,
+    onDueSoonClick: () -> Unit,
+    onPaidClick: () -> Unit
 ) {
     Surface(
         color = Color.White,
@@ -167,19 +182,33 @@ private fun DashboardHeader(
                     value = totalCount.toString(),
                     label = "Subscriptions",
                     color = DeepBlue,
-                    backgroundColor = SoftBlue
+                    backgroundColor = SoftBlue,
+                    selected = activeFilter == HomeFilter.ALL,
+                    onClick = onSubscriptionsClick
+                )
+                DashboardStat(
+                    value = thisMonthCount.toString(),
+                    label = "This month",
+                    color = DeepPurple,
+                    backgroundColor = SoftPurple,
+                    selected = activeFilter == HomeFilter.THIS_MONTH,
+                    onClick = onThisMonthClick
                 )
                 DashboardStat(
                     value = dueCount.toString(),
                     label = "Due soon",
                     color = DeepOrange,
-                    backgroundColor = SoftOrange
+                    backgroundColor = SoftOrange,
+                    selected = activeFilter == HomeFilter.DUE_SOON,
+                    onClick = onDueSoonClick
                 )
                 DashboardStat(
                     value = paidCount.toString(),
                     label = "Paid",
                     color = DeepGreen,
-                    backgroundColor = SoftGreen
+                    backgroundColor = SoftGreen,
+                    selected = activeFilter == HomeFilter.PAID,
+                    onClick = onPaidClick
                 )
             }
         }
@@ -191,12 +220,15 @@ private fun DashboardStat(
     value: String,
     label: String,
     color: Color,
-    backgroundColor: Color
+    backgroundColor: Color,
+    selected: Boolean,
+    onClick: () -> Unit
 ) {
     Surface(
+        onClick = onClick,
         color = backgroundColor,
         shape = ChipShape,
-        border = BorderStroke(1.dp, color.copy(alpha = 0.25f))
+        border = BorderStroke(1.dp, if (selected) color else color.copy(alpha = 0.25f))
     ) {
         Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
@@ -257,6 +289,7 @@ private fun SubscriptionItemView(
     item: HomeSubscriptionItem,
     onToggleRenewal: () -> Unit,
     onMarkPaid: () -> Unit,
+    onMarkUnpaid: () -> Unit,
     onClick: () -> Unit
 ) {
     val isPaid = item.status == PaymentStatus.PAID
@@ -310,7 +343,8 @@ private fun SubscriptionItemView(
                 StatusBadge(
                     label = item.status.label(),
                     color = statusColor,
-                    backgroundColor = statusBackgroundColor
+                    backgroundColor = statusBackgroundColor,
+                    onClick = if (isPaid) onMarkUnpaid else null
                 )
             }
 
@@ -389,8 +423,15 @@ private fun SubscriptionItemView(
 }
 
 @Composable
-private fun StatusBadge(label: String, color: Color, backgroundColor: Color) {
+private fun StatusBadge(
+    label: String,
+    color: Color,
+    backgroundColor: Color,
+    onClick: (() -> Unit)?
+) {
     Surface(
+        enabled = onClick != null,
+        onClick = { onClick?.invoke() },
         color = backgroundColor,
         shape = CircleShape,
         border = BorderStroke(1.dp, color.copy(alpha = 0.25f))
@@ -464,5 +505,5 @@ private fun daysUntilLabel(daysUntil: Long): String {
 }
 
 private fun formatAmount(amount: Double): String {
-    return "$${String.format(Locale.US, "%.2f", amount)}"
+    return "CHF ${String.format(Locale.US, "%.2f", amount)}"
 }

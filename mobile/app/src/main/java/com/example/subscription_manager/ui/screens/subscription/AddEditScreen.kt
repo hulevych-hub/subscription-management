@@ -4,21 +4,14 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -32,8 +25,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
@@ -55,21 +46,17 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.subscription_manager.domain.model.Recurrence
-import com.example.subscription_manager.domain.model.SubscriptionForm
 import com.example.subscription_manager.domain.model.SubscriptionType
-import com.example.subscription_manager.domain.utils.DateCalculator
 import com.example.subscription_manager.ui.theme.DeepBlue
-import com.example.subscription_manager.ui.theme.DeepGreen
 import com.example.subscription_manager.ui.theme.DeepOrange
 import com.example.subscription_manager.ui.theme.SoftBlue
-import com.example.subscription_manager.ui.theme.SoftGreen
 import com.example.subscription_manager.ui.theme.SoftOrange
 import java.time.Instant
 import java.time.LocalDate
+import java.time.YearMonth
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.roundToInt
 
 private val ScreenBackground = Color(0xFFF9F9F9)
 private val CardBackground = Color.White
@@ -88,55 +75,43 @@ fun AddEditScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val form = state.form
-    var showStartDatePicker by remember { mutableStateOf(false) }
-    var showEndDatePicker by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-    var amountInput by remember(form.id) {
-        mutableStateOf(form.amount.takeIf { it > 0.0 }?.toString() ?: "")
-    }
-    val validationMessage = validateForm(form)
-    val canSave = validationMessage == null
-    val nextPaymentDate = DateCalculator.nextPaymentDate(
-        paymentDay = form.paymentDay,
-        paymentMonth = form.paymentMonth,
-        recurrence = form.recurrence,
-        endDate = form.endDate
-    )
 
-    LaunchedEffect(subscriptionId) {
+    LaunchedEffect(Unit) {
         viewModel.navigateBack.collect {
             onNavigateBack()
         }
     }
 
+    // UI State for pickers
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+
+    // Amount formatting
+    var amountInput by remember(form.id) {
+        mutableStateOf(form.amount.takeIf { it > 0.0 }?.toString() ?: "")
+    }
+
+    // Existing start date picker
     if (showStartDatePicker) {
         SubscriptionDatePicker(
             initialDate = form.startDate,
             onDismiss = { showStartDatePicker = false },
-            onDateSelected = { date ->
-                viewModel.updateForm { copy(startDate = date) }
+            onDateSelected = {
+                viewModel.updateForm { copy(startDate = it) }
                 showStartDatePicker = false
             }
         )
     }
 
+    // ADD THIS BLOCK for the end date picker
     if (showEndDatePicker) {
         SubscriptionDatePicker(
             initialDate = form.endDate,
             onDismiss = { showEndDatePicker = false },
-            onDateSelected = { date ->
-                viewModel.updateForm { copy(endDate = date) }
+            onDateSelected = {
+                viewModel.updateForm { copy(endDate = it) }
                 showEndDatePicker = false
-            }
-        )
-    }
-
-    if (showDeleteDialog && subscriptionId != null) {
-        DeleteConfirmationDialog(
-            onDismiss = { showDeleteDialog = false },
-            onConfirm = {
-                viewModel.delete()
-                showDeleteDialog = false
             }
         )
     }
@@ -145,22 +120,12 @@ fun AddEditScreen(
         containerColor = ScreenBackground,
         topBar = {
             CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = if (subscriptionId == null) "Add subscription" else "Edit subscription",
-                        fontWeight = FontWeight.Bold
-                    )
-                },
+                title = { Text(if (subscriptionId == null) "Add" else "Edit", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
+                    IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, "Back") }
                 },
                 actions = {
-                    TextButton(
-                        enabled = canSave,
-                        onClick = viewModel::save
-                    ) {
+                    TextButton(onClick = viewModel::save, enabled = validateForm(form, amountInput) == null) {
                         Text("Save")
                     }
                 },
@@ -172,256 +137,111 @@ fun AddEditScreen(
             modifier = Modifier
                 .padding(paddingValues)
                 .verticalScroll(rememberScrollState())
-                .imePadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (state.isLoading) {
-                FormCard {
-                    Text("Loading subscription…", style = MaterialTheme.typography.bodyLarge)
-                }
-            } else {
-                validationMessage?.let { message ->
-                    FormCard(
-                        color = SoftOrange,
-                        border = BorderStroke(1.dp, DeepOrange.copy(alpha = 0.25f))
-                    ) {
-                        Text(
-                            text = message,
-                            color = DeepOrange,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.Medium
-                        )
-                    }
-                }
+            // --- Input Section ---
+            FormCard {
+                OutlinedTextField(
+                    value = form.name,
+                    onValueChange = { viewModel.updateForm { copy(name = it) } },
+                    label = { Text("Subscription Name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
-                FormCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Text(
-                            text = "Subscription details",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        OutlinedTextField(
-                            value = form.name,
-                            onValueChange = { viewModel.updateForm { copy(name = it) } },
-                            label = { Text("Name") },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = SmallShape
-                        )
-
-                        FormSectionTitle("Type")
-                        ChoiceRow(
-                            options = SubscriptionType.entries.map { it.displayName },
-                            selectedIndex = SubscriptionType.entries.indexOf(form.type),
-                            onOptionSelected = { viewModel.updateForm { copy(type = SubscriptionType.entries[it]) } }
-                        )
-
-                        OutlinedTextField(
-                            value = form.notes,
-                            onValueChange = { viewModel.updateForm { copy(notes = it) } },
-                            label = { Text("Notes") },
-                            modifier = Modifier.fillMaxWidth(),
-                            minLines = 3,
-                            shape = SmallShape
-                        )
-                    }
-                }
-
-                FormCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Amount",
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = formatAmount(form.amount),
-                                style = MaterialTheme.typography.headlineSmall,
-                                fontWeight = FontWeight.Black,
-                                color = Color.Black
-                            )
+                OutlinedTextField(
+                    value = amountInput,
+                    onValueChange = {
+                        amountInput = it
+                        viewModel.updateForm { copy(amount = it.toDoubleOrNull() ?: 0.0) }
+                    },
+                    label = { Text("Monthly Amount") },
+                    prefix = { Text("CHF ") },
+                    isError = amountValidationError(amountInput) != null,
+                    supportingText = {
+                        val amountError = amountValidationError(amountInput)
+                        if (amountError != null) {
+                            Text(amountError)
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
 
+                // Replaced Slider with cleaner Number Input
+                Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                    val maxDaysInMonth = YearMonth.of(LocalDate.now().year, form.paymentMonth.coerceIn(1, 12)).lengthOfMonth()
+
+                    // 2. Apply this to your Day TextField
+                    OutlinedTextField(
+                        value = form.paymentDay.toString(),
+                        onValueChange = { input ->
+                            val numericInput = input.filter { it.isDigit() }.toIntOrNull()
+
+                            // Clamp based on the dynamic maxDaysInMonth (e.g., 28 for Feb)
+                            val clampedValue = numericInput?.coerceIn(1, maxDaysInMonth) ?: 1
+
+                            viewModel.updateForm { copy(paymentDay = clampedValue) }
+                        },
+                        label = { Text("Day (1-$maxDaysInMonth)") }, // Displays dynamic limit to user
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    if (form.recurrence == Recurrence.ANNUAL) {
                         OutlinedTextField(
-                            value = amountInput,
-                            onValueChange = { value ->
-                                amountInput = value
-                                viewModel.updateForm { copy(amount = value.trim().toDoubleOrNull() ?: 0.0) }
+                            value = form.paymentMonth.toString(),
+                            onValueChange = { input ->
+                                // 1. Only allow numeric input
+                                val numericInput = input.filter { it.isDigit() }.toIntOrNull()
+
+                                // 2. Clamp the value between 1 and 31
+                                val clampedValue = numericInput?.coerceIn(1, 12) ?: 1
+
+                                viewModel.updateForm { copy(paymentMonth = clampedValue) }
                             },
-                            label = { Text("Subscription cost") },
-                            singleLine = true,
-                            leadingIcon = { Text("$", color = MutedText) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = SmallShape
-                        )
-
-                        FormSectionTitle("Recurrence")
-                        ChoiceRow(
-                            options = Recurrence.entries.map { it.displayName },
-                            selectedIndex = Recurrence.entries.indexOf(form.recurrence),
-                            onOptionSelected = { viewModel.updateForm { copy(recurrence = Recurrence.entries[it]) } }
-                        )
-
-                        SliderField(
-                            label = "Payment day",
-                            value = form.paymentDay.toFloat(),
-                            valueRange = 1f..31f,
-                            steps = 29,
-                            valueText = form.paymentDay.toString(),
-                            onValueChange = { viewModel.updateForm { copy(paymentDay = it.roundToInt()) } }
-                        )
-
-                        if (form.recurrence == Recurrence.ANNUAL) {
-                            SliderField(
-                                label = "Payment month",
-                                value = form.paymentMonth.toFloat(),
-                                valueRange = 1f..12f,
-                                steps = 10,
-                                valueText = form.paymentMonth.toString(),
-                                onValueChange = { viewModel.updateForm { copy(paymentMonth = it.roundToInt()) } }
-                            )
-                            Text(
-                                text = "Annual total: ${formatAmount(form.amount)}",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MutedText
-                            )
-                        }
-
-                        DateSelectionRow(
-                            label = "Start date",
-                            date = form.startDate,
-                            onSelect = { showStartDatePicker = true },
-                            onClear = { viewModel.updateForm { copy(startDate = null) } }
-                        )
-
-                        DateSelectionRow(
-                            label = "End date",
-                            date = form.endDate,
-                            onSelect = { showEndDatePicker = true },
-                            onClear = { viewModel.updateForm { copy(endDate = null) } }
+                            label = { Text("Month") },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
+            }
 
-                FormCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Next payment",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = nextPaymentDate.format(AmountFormatter),
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                            StatusChip(
-                                text = recurrenceFrequencyLabel(form.recurrence),
-                                color = DeepBlue,
-                                backgroundColor = SoftBlue
-                            )
-                        }
+            // --- Selection Section ---
+            FormCard {
+                FormSectionTitle("Recurrence Type")
+                ChoiceRow(
+                    options = Recurrence.entries.map { it.displayName },
+                    selectedIndex = Recurrence.entries.indexOf(form.recurrence),
+                    onOptionSelected = { viewModel.updateForm { copy(recurrence = Recurrence.entries[it]) } }
+                )
 
-                        SwitchRow(
-                            label = "Renewal enabled",
-                            description = "Turn off to keep this subscription visible without scheduling future payments.",
-                            checked = form.renewalEnabled,
-                            onCheckedChange = { viewModel.updateForm { copy(renewalEnabled = it) } }
-                        )
-                    }
-                }
+                DateSelectionRow("Start Date", form.startDate, { showStartDatePicker = true }, { viewModel.updateForm { copy(startDate = null) } })
+                DateSelectionRow("End Date", form.endDate, { showEndDatePicker = true }, { viewModel.updateForm { copy(endDate = null) } })
+            }
 
-                if (subscriptionId != null) {
-                    OutlinedButton(
-                        onClick = { showDeleteDialog = true },
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = SmallShape
-                    ) {
-                        Text("Delete subscription")
-                    }
-                }
+            // --- Toggle Section ---
+            FormCard {
+                SwitchRow(
+                    label = "Renewal Enabled",
+                    description = "Keep active in dashboard",
+                    checked = form.renewalEnabled,
+                    onCheckedChange = { viewModel.updateForm { copy(renewalEnabled = it) } }
+                )
+            }
 
-                Button(
-                    enabled = canSave,
-                    onClick = viewModel::save,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = SmallShape,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Black,
-                        disabledContainerColor = Color.Black.copy(alpha = 0.24f)
-                    )
-                ) {
-                    Text(
-                        text = if (subscriptionId == null) "Add subscription" else "Save changes",
-                        fontWeight = FontWeight.Bold
-                    )
+            if (subscriptionId != null) {
+                OutlinedButton(onClick = { showDeleteDialog = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Delete Subscription", color = Color.Red)
                 }
             }
         }
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SubscriptionDatePicker(
-    initialDate: LocalDate?,
-    onDismiss: () -> Unit,
-    onDateSelected: (LocalDate) -> Unit
-) {
-    val datePickerState: DatePickerState = rememberDatePickerState(
-        initialSelectedDateMillis = initialDate?.toEpochMillis()
-    )
-
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(
-                enabled = datePickerState.selectedDateMillis != null,
-                onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        onDateSelected(millis.toLocalDate())
-                    }
-                }
-            ) {
-                Text("OK")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    ) {
-        DatePicker(state = datePickerState)
-    }
-}
-
-@Composable
-private fun FormCard(
-    color: Color = CardBackground,
-    border: BorderStroke? = null,
-    content: @Composable () -> Unit
-) {
+private fun FormCard(content: @Composable () -> Unit) {
     Surface(
-        color = color,
+        color = CardBackground,
         shape = CardShape,
-        border = border,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(
@@ -444,26 +264,13 @@ private fun FormSectionTitle(title: String) {
 }
 
 @Composable
-private fun ChoiceRow(
-    options: List<String>,
-    selectedIndex: Int,
-    onOptionSelected: (Int) -> Unit
-) {
+private fun ChoiceRow(options: List<String>, selectedIndex: Int, onOptionSelected: (Int) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEachIndexed { index, option ->
-            val selected = index == selectedIndex
             FilterChip(
-                selected = selected,
+                selected = index == selectedIndex,
                 onClick = { onOptionSelected(index) },
                 label = { Text(option) },
-                border = BorderStroke(
-                    1.dp,
-                    if (selected) Color.Transparent else DividerColor
-                ),
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color.Black,
-                    selectedLabelColor = Color.White
-                ),
                 shape = SmallShape
             )
         }
@@ -471,195 +278,69 @@ private fun ChoiceRow(
 }
 
 @Composable
-private fun DateSelectionRow(
-    label: String,
-    date: LocalDate?,
-    onSelect: () -> Unit,
-    onClear: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        OutlinedButton(
-            onClick = onSelect,
-            modifier = Modifier.weight(1f),
-            shape = SmallShape
-        ) {
-            Text(
-                text = if (date == null) "Select $label" else "$label: ${date.format(AmountFormatter)}",
-                maxLines = 1
-            )
+private fun DateSelectionRow(label: String, date: LocalDate?, onSelect: () -> Unit, onClear: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(onClick = onSelect, modifier = Modifier.weight(1f)) {
+            Text(text = date?.format(AmountFormatter) ?: "Select $label")
         }
         if (date != null) {
-            OutlinedButton(
-                onClick = onClear,
-                shape = SmallShape
-            ) {
-                Text("Clear")
-            }
+            TextButton(onClick = onClear) { Text("Clear") }
         }
     }
 }
 
 @Composable
-private fun SliderField(
-    label: String,
-    value: Float,
-    valueRange: ClosedFloatingPointRange<Float>,
-    steps: Int,
-    valueText: String,
-    onValueChange: (Float) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = valueText,
-                style = MaterialTheme.typography.bodyLarge,
-                color = MutedText
-            )
-        }
-        Slider(
-            value = value,
-            onValueChange = onValueChange,
-            valueRange = valueRange,
-            steps = steps,
-            modifier = Modifier.fillMaxWidth(),
-            colors = SliderDefaults.colors(
-                activeTrackColor = Color.Black,
-                inactiveTrackColor = DividerColor,
-                thumbColor = Color.Black
-            )
-        )
-    }
-}
-
-@Composable
-private fun SwitchRow(
-    label: String,
-    description: String,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+private fun SwitchRow(label: String, description: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MutedText
-            )
+            Text(label, style = MaterialTheme.typography.bodyLarge)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MutedText)
         }
-        Switch(
-            checked = checked,
-            onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = Color.Black,
-                checkedBorderColor = Color.Black,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = DividerColor,
-                uncheckedBorderColor = DividerColor
-            )
-        )
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
-@Composable
-private fun StatusChip(
-    text: String,
-    color: Color,
-    backgroundColor: Color
-) {
-    Surface(
-        color = backgroundColor,
-        shape = SmallShape,
-        border = BorderStroke(1.dp, color.copy(alpha = 0.25f))
-    ) {
-        Text(
-            text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-            color = color,
-            style = MaterialTheme.typography.labelLarge,
-            fontWeight = FontWeight.Bold
-        )
+private fun validateForm(
+    form: com.example.subscription_manager.domain.model.SubscriptionForm,
+    amountInput: String
+): String? {
+    return form.name.takeIf { it.isBlank() }
+        ?.let { "Name is required" }
+        ?: amountValidationError(amountInput)
+}
+
+private fun amountValidationError(amountInput: String): String? {
+    val amount = amountInput.toDoubleOrNull()
+    return when {
+        amountInput.isBlank() -> "Amount is required"
+        amount == null -> "Enter a valid amount"
+        amount <= 0.0 -> "Amount must be greater than 0"
+        else -> null
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DeleteConfirmationDialog(
+private fun SubscriptionDatePicker(
+    initialDate: LocalDate?,
     onDismiss: () -> Unit,
-    onConfirm: () -> Unit
+    onDateSelected: (LocalDate) -> Unit
 ) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(text = "Delete subscription?") },
-        text = { Text(text = "This removes the subscription and its reminders from this device.") },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = onConfirm
-            ) {
-                Text("Delete")
-            }
-        }
+    val datePickerState = rememberDatePickerState(
+        initialSelectedDateMillis = initialDate?.atStartOfDay(ZoneId.systemDefault())?.toInstant()?.toEpochMilli()
     )
-}
 
-private fun validateForm(form: SubscriptionForm): String? {
-    if (form.name.trim().isBlank()) {
-        return "Name is required."
+    DatePickerDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = {
+            TextButton(onClick = {
+                datePickerState.selectedDateMillis?.let {
+                    onDateSelected(Instant.ofEpochMilli(it).atZone(ZoneId.systemDefault()).toLocalDate())
+                }
+            }) { Text("OK") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+    ) {
+        DatePicker(state = datePickerState)
     }
-    if (form.amount <= 0.0) {
-        return "Amount must be greater than 0."
-    }
-    if (form.paymentDay !in 1..31) {
-        return "Payment day must be between 1 and 31."
-    }
-    if (form.paymentMonth !in 1..12) {
-        return "Payment month must be between 1 and 12."
-    }
-    if (form.startDate != null && form.endDate != null && form.endDate < form.startDate) {
-        return "End date must be on or after the start date."
-    }
-    return null
-}
-
-private fun formatAmount(amount: Double): String {
-    return "$${String.format(Locale.US, "%.2f", amount)}"
-}
-
-private fun recurrenceFrequencyLabel(recurrence: Recurrence): String {
-    return when (recurrence) {
-        Recurrence.MONTHLY -> "Monthly"
-        Recurrence.ANNUAL -> "Annual"
-    }
-}
-
-private fun LocalDate.toEpochMillis(): Long {
-    return atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
-}
-
-private fun Long.toLocalDate(): LocalDate {
-    return Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).toLocalDate()
 }

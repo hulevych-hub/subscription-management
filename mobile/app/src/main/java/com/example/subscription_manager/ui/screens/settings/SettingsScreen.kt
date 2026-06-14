@@ -41,6 +41,14 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.subscription_manager.domain.model.ThemeMode
 import java.time.format.DateTimeFormatter
+import android.app.TimePickerDialog
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.Security
+import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.ui.graphics.Color
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,23 +56,27 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
     val reminderTime by viewModel.reminderTime.collectAsStateWithLifecycle()
     val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission()
-    ) { }
+
+    // Helper to launch the native Time Picker
+    fun showTimePicker() {
+        TimePickerDialog(
+            context,
+            { _, hour, minute -> viewModel.updateReminderTime(reminderTime.copy(hour = hour, minute = minute)) },
+            reminderTime.hour,
+            reminderTime.minute,
+            true
+        ).show()
+    }
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(text = "Settings") },
+            CenterAlignedTopAppBar(
+                title = { Text("Settings", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onNavigateBack) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
+                    IconButton(onClick = onNavigateBack) { Icon(Icons.Default.ArrowBack, "Back") }
                 }
             )
         }
@@ -72,119 +84,63 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .padding(paddingValues)
-                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            // --- Reminder Section ---
             SettingsCard {
-                Text(
-                    text = "Reminder time",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(16.dp))
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth().clickable { showTimePicker() },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
+                    Column {
+                        Text("Reminder Time", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = "Set daily notification time",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MutedText
+                        )
+                    }
                     Text(
                         text = reminderTime.format(),
-                        style = MaterialTheme.typography.bodyLarge
-                    )
-                    Text(
-                        text = "Local reminders",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.headlineSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(text = "Hour")
-                Slider(
-                    value = reminderTime.hour.toFloat(),
-                    onValueChange = { hour ->
-                        viewModel.updateReminderTime(reminderTime.copy(hour = hour.roundToInt()))
-                    },
-                    valueRange = 0f..23f,
-                    steps = 22,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Text(text = "Minute")
-                Slider(
-                    value = reminderTime.minute.toFloat(),
-                    onValueChange = { minute ->
-                        viewModel.updateReminderTime(reminderTime.copy(minute = minute.roundToInt()))
-                    },
-                    valueRange = 0f..59f,
-                    steps = 58,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Button(
-                    enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
-                    onClick = {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        }
-                    }
-                ) {
-                    Text(text = "Enable notification permission")
-                }
-                Text(
-                    text = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        val granted = ContextCompat.checkSelfPermission(
-                            LocalContext.current,
-                            Manifest.permission.POST_NOTIFICATIONS
-                        ) == PackageManager.PERMISSION_GRANTED
-                        if (granted) "Notifications are allowed." else "Notifications are currently blocked."
-                    } else {
-                        "Notifications are available on this device."
-                    },
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
             }
 
+            // --- Theme Section ---
             SettingsCard {
-                Text(
-                    text = "Theme",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+                Text("Theme", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 ThemeMode.entries.forEach { mode ->
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().clickable { viewModel.updateThemeMode(mode) },
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        RadioButton(
-                            selected = themeMode == mode,
-                            onClick = { viewModel.updateThemeMode(mode) }
-                        )
-                        Text(
-                            text = mode.displayName,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                        RadioButton(selected = themeMode == mode, onClick = null)
+                        Text(mode.displayName, modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             }
 
+            // --- Privacy Section ---
             SettingsCard {
+                Text("Privacy", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
                 Text(
-                    text = "Privacy",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = "No accounts, cloud sync, analytics, advertisements, or internet access. Subscriptions and reminders are stored locally on this device.",
+                    text = "Stored locally. No cloud sync, no tracking.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MutedText
                 )
             }
         }
     }
 }
+
+private val MutedText = Color(0xFF6B7280)
+private val CardShape = RoundedCornerShape(24.dp)
+private val SmallShape = RoundedCornerShape(16.dp)
 
 @Composable
 private fun SettingsCard(

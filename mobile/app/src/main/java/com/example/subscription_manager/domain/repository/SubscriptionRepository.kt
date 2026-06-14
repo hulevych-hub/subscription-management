@@ -15,6 +15,8 @@ interface SubscriptionRepository {
 
     suspend fun markPaid(id: Long)
 
+    suspend fun markUnpaid(id: Long)
+
     suspend fun toggleRenewal(id: Long)
 
     suspend fun markReminderSent(id: Long, cycleKey: String)

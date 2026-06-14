@@ -53,6 +53,15 @@ class SubscriptionRepositoryImpl @Inject constructor(
         )
     }
 
+    override suspend fun markUnpaid(id: Long) {
+        subscriptionDao.updatePaymentStatus(
+            id = id,
+            isPaid = false,
+            paidCycleKey = null,
+            timestamp = System.currentTimeMillis()
+        )
+    }
+
     override suspend fun toggleRenewal(id: Long) {
         val entity = subscriptionDao.getById(id) ?: return
         subscriptionDao.updateRenewal(
