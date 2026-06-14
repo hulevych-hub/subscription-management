@@ -5,6 +5,7 @@ import java.time.LocalDate
 data class SubscriptionForm(
     val id: Long = 0L,
     val name: String = "",
+    val amount: Double = 0.0,
     val type: SubscriptionType = SubscriptionType.SUBSCRIPTION,
     val notes: String = "",
     val startDate: LocalDate? = null,

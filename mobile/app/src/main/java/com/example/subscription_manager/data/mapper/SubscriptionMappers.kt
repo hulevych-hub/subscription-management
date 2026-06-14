@@ -58,6 +58,7 @@ fun SubscriptionForm.toEntity(
     return SubscriptionEntity(
         id = id,
         name = name.trim(),
+        amount = amount,
         type = type,
         notes = notes.trim().ifBlank { null },
         startDateEpochDay = startDate?.toEpochDay(),

@@ -74,6 +74,7 @@ class AddEditViewModel @Inject constructor(
                         form = SubscriptionForm(
                             id = it.id,
                             name = it.name,
+                            amount = it.amount,
                             type = it.type,
                             notes = it.notes.orEmpty(),
                             startDate = it.startDate,
