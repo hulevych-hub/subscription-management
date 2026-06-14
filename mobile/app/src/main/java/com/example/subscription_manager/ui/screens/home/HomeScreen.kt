@@ -47,14 +47,21 @@ import com.example.subscription_manager.domain.model.HomeSubscriptionItem
 import com.example.subscription_manager.domain.model.PaymentStatus
 import com.example.subscription_manager.domain.model.Recurrence
 import com.example.subscription_manager.domain.utils.DateCalculator
-import com.example.subscription_manager.ui.theme.DeepBlue
+import com.example.subscription_manager.ui.theme.DarkDeepGreen
+import com.example.subscription_manager.ui.theme.DarkDeepOrange
+import com.example.subscription_manager.ui.theme.DarkSoftBlue
+import com.example.subscription_manager.ui.theme.DarkSoftGreen
+import com.example.subscription_manager.ui.theme.DarkSoftOrange
+import com.example.subscription_manager.ui.theme.DarkSoftPurple
+import com.example.subscription_manager.ui.theme.DarkSoftRed
 import com.example.subscription_manager.ui.theme.DeepGreen
 import com.example.subscription_manager.ui.theme.DeepOrange
-import com.example.subscription_manager.ui.theme.DeepPurple
+import com.example.subscription_manager.ui.theme.LocalUseDarkTheme
 import com.example.subscription_manager.ui.theme.SoftBlue
 import com.example.subscription_manager.ui.theme.SoftGreen
 import com.example.subscription_manager.ui.theme.SoftOrange
 import com.example.subscription_manager.ui.theme.SoftPurple
+import com.example.subscription_manager.ui.theme.SoftRed
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.absoluteValue
@@ -183,32 +190,32 @@ private fun DashboardHeader(
                 DashboardStat(
                     value = totalCount.toString(),
                     label = "Subscriptions",
-                    color = DeepBlue,
-                    backgroundColor = SoftBlue,
+                    color = MaterialTheme.colorScheme.primary,
+                    backgroundColor = filterBackgroundColor(HomeFilter.ALL),
                     selected = activeFilter == HomeFilter.ALL,
                     onClick = onSubscriptionsClick
                 )
                 DashboardStat(
                     value = thisMonthCount.toString(),
                     label = "This month",
-                    color = DeepPurple,
-                    backgroundColor = SoftPurple,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    backgroundColor = filterBackgroundColor(HomeFilter.THIS_MONTH),
                     selected = activeFilter == HomeFilter.THIS_MONTH,
                     onClick = onThisMonthClick
                 )
                 DashboardStat(
                     value = dueCount.toString(),
                     label = "Due soon",
-                    color = DeepOrange,
-                    backgroundColor = SoftOrange,
+                    color = dueSoonStatusColor(),
+                    backgroundColor = filterBackgroundColor(HomeFilter.DUE_SOON),
                     selected = activeFilter == HomeFilter.DUE_SOON,
                     onClick = onDueSoonClick
                 )
                 DashboardStat(
                     value = paidCount.toString(),
                     label = "Paid",
-                    color = DeepGreen,
-                    backgroundColor = SoftGreen,
+                    color = paidStatusColor(),
+                    backgroundColor = filterBackgroundColor(HomeFilter.PAID),
                     selected = activeFilter == HomeFilter.PAID,
                     onClick = onPaidClick
                 )
@@ -328,8 +335,8 @@ private fun SubscriptionItemView(
     Surface(
         onClick = onClick,
         color = when {
-            isPaid -> SoftGreen
-            item.status == PaymentStatus.DUE_SOON || item.status == PaymentStatus.OVERDUE -> SoftOrange
+            isPaid -> PaymentStatus.PAID.statusBackgroundColor()
+            item.status == PaymentStatus.DUE_SOON || item.status == PaymentStatus.OVERDUE -> item.status.statusBackgroundColor()
             else -> MaterialTheme.colorScheme.surface
         },
         shape = CardShape,
@@ -492,22 +499,47 @@ private fun PaymentStatus.label(): String {
 }
 
 @Composable
+private fun isDarkTheme(): Boolean {
+    return LocalUseDarkTheme.current
+}
+
+@Composable
+private fun paidStatusColor(): Color {
+    return if (isDarkTheme()) DarkDeepGreen else DeepGreen
+}
+
+@Composable
+private fun dueSoonStatusColor(): Color {
+    return if (isDarkTheme()) DarkDeepOrange else DeepOrange
+}
+
+@Composable
 private fun PaymentStatus.statusColor(): Color {
     return when (this) {
-        PaymentStatus.PAID -> DeepGreen
+        PaymentStatus.PAID -> paidStatusColor()
         PaymentStatus.OVERDUE -> MaterialTheme.colorScheme.error
-        PaymentStatus.DUE_SOON -> DeepOrange
-        PaymentStatus.UPCOMING -> DeepBlue
+        PaymentStatus.DUE_SOON -> dueSoonStatusColor()
+        PaymentStatus.UPCOMING -> MaterialTheme.colorScheme.primary
     }
 }
 
 @Composable
 private fun PaymentStatus.statusBackgroundColor(): Color {
     return when (this) {
-        PaymentStatus.PAID -> SoftGreen
-        PaymentStatus.OVERDUE -> SoftOrange
-        PaymentStatus.DUE_SOON -> SoftOrange
-        PaymentStatus.UPCOMING -> SoftBlue
+        PaymentStatus.PAID -> if (isDarkTheme()) DarkSoftGreen else SoftGreen
+        PaymentStatus.OVERDUE -> if (isDarkTheme()) DarkSoftRed else SoftRed
+        PaymentStatus.DUE_SOON -> if (isDarkTheme()) DarkSoftOrange else SoftOrange
+        PaymentStatus.UPCOMING -> if (isDarkTheme()) DarkSoftBlue else SoftBlue
+    }
+}
+
+@Composable
+private fun filterBackgroundColor(filter: HomeFilter): Color {
+    return when (filter) {
+        HomeFilter.ALL -> if (isDarkTheme()) DarkSoftBlue else SoftBlue
+        HomeFilter.THIS_MONTH -> if (isDarkTheme()) DarkSoftPurple else SoftPurple
+        HomeFilter.DUE_SOON -> if (isDarkTheme()) DarkSoftOrange else SoftOrange
+        HomeFilter.PAID -> if (isDarkTheme()) DarkSoftGreen else SoftGreen
     }
 }
 

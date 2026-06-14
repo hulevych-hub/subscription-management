@@ -6,17 +6,21 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.example.subscription_manager.domain.model.ThemeMode
 
+internal val LocalUseDarkTheme = compositionLocalOf { false }
+
 private val DarkColorScheme = darkColorScheme(
     primary = Blue80,
-    onPrimary = Slate900,
+    onPrimary = Color(0xFF082F49),
     primaryContainer = Color(0xFF1E3A8A),
-    onPrimaryContainer = Blue80,
+    onPrimaryContainer = Color(0xFFBFDBFE),
     secondary = Color(0xFF6EE7B7),
     onSecondary = Color(0xFF042F2E),
     secondaryContainer = Color(0xFF064E3B),
@@ -24,20 +28,20 @@ private val DarkColorScheme = darkColorScheme(
     tertiary = Color(0xFFC4B5FD),
     onTertiary = Color(0xFF1E1B4B),
     tertiaryContainer = Color(0xFF3B0764),
-    onTertiaryContainer = Color(0xFFDDD6FE),
-    error = Color(0xFFFCA5A5),
-    onError = DeepRed,
-    errorContainer = DeepRed,
+    onTertiaryContainer = Color(0xFFE9D5FF),
+    error = DarkDeepRed,
+    onError = Color(0xFF450A0A),
+    errorContainer = Color(0xFF7F1D1D),
     onErrorContainer = Color(0xFFFECACA),
     background = Slate950,
-    onBackground = Slate200,
+    onBackground = Slate100,
     surface = Slate900,
-    onSurface = Slate200,
+    onSurface = Slate100,
     surfaceVariant = Slate800,
-    onSurfaceVariant = Slate300,
+    onSurfaceVariant = Slate200,
     outline = Slate500,
     outlineVariant = Slate700,
-    inverseSurface = Slate200,
+    inverseSurface = Slate100,
     inverseOnSurface = Slate950,
     inversePrimary = Blue40,
     surfaceTint = Blue80
@@ -98,9 +102,11 @@ fun SubscriptionmanagerTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
-    )
+    CompositionLocalProvider(LocalUseDarkTheme provides useDarkTheme) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content
+        )
+    }
 }

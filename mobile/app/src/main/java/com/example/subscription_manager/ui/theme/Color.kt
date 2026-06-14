@@ -21,6 +21,16 @@ val DeepBlue = Color(0xFF2563EB)
 val SoftPurple = Color(0xFFDDD6FE)
 val DeepPurple = Color(0xFF7C3AED)
 
+// Dark status colors
+val DarkSoftOrange = Color(0xFF431407)
+val DarkDeepOrange = Color(0xFFFDBA74)
+val DarkSoftGreen = Color(0xFF052E1A)
+val DarkDeepGreen = Color(0xFF86EFAC)
+val DarkSoftBlue = Color(0xFF172554)
+val DarkSoftPurple = Color(0xFF2E1065)
+val DarkSoftRed = Color(0xFF450A0A)
+val DarkDeepRed = Color(0xFFFCA5A5)
+
 // Neutral palette
 val Slate950 = Color(0xFF020617)
 val Slate900 = Color(0xFF0F172A)
