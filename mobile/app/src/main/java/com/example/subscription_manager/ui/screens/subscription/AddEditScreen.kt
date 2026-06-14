@@ -40,17 +40,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.subscription_manager.domain.model.Recurrence
 import com.example.subscription_manager.domain.model.SubscriptionType
-import com.example.subscription_manager.ui.theme.DeepBlue
-import com.example.subscription_manager.ui.theme.DeepOrange
-import com.example.subscription_manager.ui.theme.SoftBlue
-import com.example.subscription_manager.ui.theme.SoftOrange
 import java.time.Instant
 import java.time.LocalDate
 import java.time.YearMonth
@@ -58,10 +53,6 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private val ScreenBackground = Color(0xFFF9F9F9)
-private val CardBackground = Color.White
-private val DividerColor = Color(0xFFE5E7EB)
-private val MutedText = Color(0xFF6B7280)
 private val CardShape = RoundedCornerShape(24.dp)
 private val SmallShape = RoundedCornerShape(16.dp)
 private val AmountFormatter = DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.US)
@@ -117,7 +108,7 @@ fun AddEditScreen(
     }
 
     Scaffold(
-        containerColor = ScreenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text(if (subscriptionId == null) "Add" else "Edit", fontWeight = FontWeight.Bold) },
@@ -129,7 +120,7 @@ fun AddEditScreen(
                         Text("Save")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = ScreenBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         }
     ) { paddingValues ->
@@ -230,17 +221,38 @@ fun AddEditScreen(
 
             if (subscriptionId != null) {
                 OutlinedButton(onClick = { showDeleteDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Delete Subscription", color = Color.Red)
+                    Text("Delete Subscription", color = MaterialTheme.colorScheme.error)
                 }
             }
         }
+    }
+
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete Subscription") },
+            text = { Text("This will permanently remove this subscription and its reminders.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    viewModel.delete()
+                }) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
 @Composable
 private fun FormCard(content: @Composable () -> Unit) {
     Surface(
-        color = CardBackground,
+        color = MaterialTheme.colorScheme.surface,
         shape = CardShape,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -258,7 +270,7 @@ private fun FormSectionTitle(title: String) {
     Text(
         text = title,
         style = MaterialTheme.typography.titleSmall,
-        color = MutedText,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.SemiBold
     )
 }
@@ -294,7 +306,7 @@ private fun SwitchRow(label: String, description: String, checked: Boolean, onCh
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.weight(1f)) {
             Text(label, style = MaterialTheme.typography.bodyLarge)
-            Text(description, style = MaterialTheme.typography.bodySmall, color = MutedText)
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
         Switch(checked = checked, onCheckedChange = onCheckedChange)
     }

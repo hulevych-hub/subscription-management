@@ -4,28 +4,30 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import dagger.hilt.android.AndroidEntryPoint
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.WorkManager
-import androidx.work.workDataOf
-import com.example.subscription_manager.data.worker.RescheduleRemindersWorker
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class BootReceiver : BroadcastReceiver() {
+
+    @Inject
+    lateinit var scheduler: NotificationScheduler
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED && intent.action != Intent.ACTION_MY_PACKAGE_REPLACED) {
             return
         }
 
-        val request = OneTimeWorkRequestBuilder<RescheduleRemindersWorker>()
-            .setInputData(workDataOf())
-            .build()
+        val pendingResult = goAsync()
 
-        WorkManager.getInstance(context).enqueueUniqueWork(
-            NotificationScheduler.UNIQUE_RESCHEDULE_ALL,
-            ExistingWorkPolicy.REPLACE,
-            request
-        )
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                scheduler.rescheduleAllReminders()
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 }

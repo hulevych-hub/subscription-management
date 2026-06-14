@@ -51,4 +51,19 @@ interface SubscriptionDao {
 
     @Query("UPDATE subscriptions SET last_reminder_cycle_key = :cycleKey WHERE id = :id")
     suspend fun updateLastReminderCycle(id: Long, cycleKey: String)
+
+    @Query(
+        """
+        UPDATE subscriptions
+        SET last_reminder_cycle_key = CASE
+            WHEN last_reminder_cycle_key = :cycleKey THEN NULL
+            ELSE last_reminder_cycle_key
+        END
+        WHERE id = :id
+        """
+    )
+    suspend fun clearLastReminderCycle(id: Long, cycleKey: String)
+
+    @Query("UPDATE subscriptions SET last_reminder_cycle_key = NULL")
+    suspend fun clearAllLastReminderCycles()
 }

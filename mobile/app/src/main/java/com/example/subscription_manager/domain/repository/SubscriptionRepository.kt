@@ -20,4 +20,8 @@ interface SubscriptionRepository {
     suspend fun toggleRenewal(id: Long)
 
     suspend fun markReminderSent(id: Long, cycleKey: String)
+
+    suspend fun clearReminderSent(id: Long, cycleKey: String)
+
+    suspend fun clearAllReminderSent()
 }

@@ -1,7 +1,6 @@
 package com.example.subscription_manager.notification
 
 import android.Manifest
-import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -9,13 +8,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.util.Log
+import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.example.subscription_manager.MainActivity
 import com.example.subscription_manager.domain.model.Subscription
 import com.example.subscription_manager.domain.repository.SubscriptionRepository
+import com.example.subscription_manager.domain.utils.DateCalculator
 import dagger.hilt.android.qualifiers.ApplicationContext
-import java.time.format.DateTimeFormatter
+import java.util.Locale
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -25,14 +27,30 @@ class NotificationPublisher @Inject constructor(
     private val repository: SubscriptionRepository
 ) {
     suspend fun showReminder(subscription: Subscription, cycleKey: String): Boolean {
-        if (subscription.isPaid || subscription.lastReminderCycleKey == cycleKey) {
+        if (subscription.isPaid) {
+            Log.d(TAG, "Skipping paid subscription ${subscription.id}")
+            return false
+        }
+
+        if (subscription.lastReminderCycleKey == cycleKey) {
+            Log.d(TAG, "Skipping already reminded subscription ${subscription.id} for cycle $cycleKey")
+            return false
+        }
+
+        if (!hasNotificationPermission()) {
+            Log.w(TAG, "Notification permission missing for subscription ${subscription.id}")
+            repository.clearReminderSent(subscription.id, cycleKey)
             return false
         }
 
         createNotificationChannel()
 
         val notificationId = notificationId(subscription.id)
-        val smallIconId = smallIconId()
+        val daysUntil = DateCalculator.daysUntil(subscription.nextPaymentDate)
+        val isUrgent = daysUntil <= 1
+        val smallIconId = smallIconId(isUrgent)
+        val reminderText = reminderText(subscription, daysUntil)
+        val paymentDateText = subscription.nextPaymentDate.format(DateFormatter)
         val markPaidIntent = Intent(context, MarkPaidBroadcastReceiver::class.java).apply {
             action = MarkPaidBroadcastReceiver.ACTION_MARK_PAID
             putExtra(MarkPaidBroadcastReceiver.EXTRA_SUBSCRIPTION_ID, subscription.id)
@@ -54,16 +72,17 @@ class NotificationPublisher @Inject constructor(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val paymentDateText = subscription.nextPaymentDate.format(DateTimeFormatter.ofPattern("MMM d, yyyy"))
-        val notification = Notification.Builder(context, CHANNEL_ID)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(smallIconId)
-            .setContentTitle("Subscription payment due")
-            .setContentText("$subscription.name • $paymentDateText")
-            .setStyle(Notification.BigTextStyle().bigText("$subscription.name payment is due on $paymentDateText."))
-            .setCategory(Notification.CATEGORY_REMINDER)
+            .setColor(accentColor(isUrgent))
+            .setContentTitle(reminderText)
+            .setContentText(paymentDateText)
+            .setStyle(NotificationCompat.BigTextStyle().bigText("$reminderText Payment date: $paymentDateText."))
+            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(openAppPendingIntent)
             .addAction(
-                Notification.Action.Builder(
+                NotificationCompat.Action.Builder(
                     smallIconId,
                     "Mark Paid",
                     markPaidPendingIntent
@@ -72,16 +91,28 @@ class NotificationPublisher @Inject constructor(
             .setAutoCancel(true)
             .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            if (ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED) {
-                NotificationManagerCompat.from(context).notify(notificationId, notification)
-            }
-        } else {
+        Log.d(TAG, "Posting notification $notificationId for subscription ${subscription.id}")
+        runCatching {
             NotificationManagerCompat.from(context).notify(notificationId, notification)
+        }.onFailure { exception ->
+            Log.e(TAG, "Failed to post notification $notificationId for subscription ${subscription.id}", exception)
+            return false
         }
 
         repository.markReminderSent(subscription.id, cycleKey)
+        Log.d(TAG, "Posted notification $notificationId for subscription ${subscription.id}")
         return true
+    }
+
+    private fun hasNotificationPermission(): Boolean {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            ContextCompat.checkSelfPermission(
+                context,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        } else {
+            true
+        }
     }
 
     private fun createNotificationChannel() {
@@ -99,8 +130,33 @@ class NotificationPublisher @Inject constructor(
         manager.createNotificationChannel(channel)
     }
 
-    private fun smallIconId(): Int {
-        return context.resources.getIdentifier("ic_notification", "drawable", context.packageName)
+    private fun smallIconId(isUrgent: Boolean): Int {
+        val preferredIcon = if (isUrgent) "ic_notification_urgent_red" else "ic_notification_warning_orange"
+        val preferredId = context.resources.getIdentifier(preferredIcon, "drawable", context.packageName)
+        return preferredId.takeIf { it != 0 }
+            ?: context.resources.getIdentifier("ic_notification", "drawable", context.packageName)
+    }
+
+    private fun accentColor(isUrgent: Boolean): Int {
+        return if (isUrgent) {
+            android.graphics.Color.rgb(220, 38, 38)
+        } else {
+            android.graphics.Color.rgb(245, 158, 11)
+        }
+    }
+
+    private fun reminderText(subscription: Subscription, daysUntil: Long): String {
+        val amount = formatAmount(subscription.amount)
+        return when {
+            daysUntil > 1 -> "${subscription.name} is due: $amount in $daysUntil days."
+            daysUntil == 1L -> "${subscription.name} is due: $amount tomorrow."
+            daysUntil == 0L -> "${subscription.name} is due: $amount today."
+            else -> "${subscription.name} is overdue: $amount."
+        }
+    }
+
+    private fun formatAmount(amount: Double): String {
+        return "CHF ${String.format(Locale.US, "%.2f", amount)}"
     }
 
     private fun notificationId(subscriptionId: Long): Int {
@@ -108,6 +164,8 @@ class NotificationPublisher @Inject constructor(
     }
 
     companion object {
+        private const val TAG = "NotificationPublisher"
         const val CHANNEL_ID = "payment_reminders"
+        private val DateFormatter = java.time.format.DateTimeFormatter.ofPattern("MMM d, yyyy")
     }
 }

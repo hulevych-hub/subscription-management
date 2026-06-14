@@ -8,6 +8,7 @@ import com.example.subscription_manager.domain.usecases.GetReminderTimeUseCase
 import com.example.subscription_manager.domain.usecases.GetThemeModeUseCase
 import com.example.subscription_manager.domain.usecases.UpdateReminderTimeUseCase
 import com.example.subscription_manager.domain.usecases.UpdateThemeModeUseCase
+import com.example.subscription_manager.domain.repository.SubscriptionRepository
 import com.example.subscription_manager.notification.NotificationScheduler
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
@@ -26,7 +27,8 @@ class SettingsViewModel @Inject constructor(
     getThemeModeUseCase: GetThemeModeUseCase,
     private val updateReminderTimeUseCase: UpdateReminderTimeUseCase,
     private val updateThemeModeUseCase: UpdateThemeModeUseCase,
-    private val notificationScheduler: NotificationScheduler
+    private val notificationScheduler: NotificationScheduler,
+    private val repository: SubscriptionRepository
 ) : ViewModel() {
 
     val reminderTime = getReminderTimeUseCase()
@@ -46,6 +48,13 @@ class SettingsViewModel @Inject constructor(
     fun updateReminderTime(reminderTime: ReminderTime) {
         viewModelScope.launch {
             updateReminderTimeUseCase(reminderTime)
+            notificationScheduler.rescheduleAllReminders()
+        }
+    }
+
+    fun onNotificationPermissionGranted() {
+        viewModelScope.launch {
+            repository.clearAllReminderSent()
             notificationScheduler.rescheduleAllReminders()
         }
     }

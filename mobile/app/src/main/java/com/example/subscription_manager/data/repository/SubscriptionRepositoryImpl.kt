@@ -74,4 +74,12 @@ class SubscriptionRepositoryImpl @Inject constructor(
     override suspend fun markReminderSent(id: Long, cycleKey: String) {
         subscriptionDao.updateLastReminderCycle(id = id, cycleKey = cycleKey)
     }
+
+    override suspend fun clearReminderSent(id: Long, cycleKey: String) {
+        subscriptionDao.clearLastReminderCycle(id = id, cycleKey = cycleKey)
+    }
+
+    override suspend fun clearAllReminderSent() {
+        subscriptionDao.clearAllLastReminderCycles()
+    }
 }

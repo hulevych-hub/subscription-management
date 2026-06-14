@@ -14,17 +14,30 @@ import androidx.core.view.WindowCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.rememberNavController
 import com.example.subscription_manager.domain.model.ThemeMode
+import com.example.subscription_manager.notification.NotificationScheduler
 import com.example.subscription_manager.ui.navigation.App
 import com.example.subscription_manager.ui.screens.settings.SettingsViewModel
 import com.example.subscription_manager.ui.theme.SubscriptionmanagerTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject
+    lateinit var notificationScheduler: NotificationScheduler
+
+    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        appScope.launch {
+            runCatching { notificationScheduler.rescheduleAllReminders() }
+        }
         enableEdgeToEdge()
         WindowCompat.setDecorFitsSystemWindows(window, false)
 

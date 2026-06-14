@@ -59,10 +59,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.absoluteValue
 
-private val ScreenBackground = Color(0xFFF9F9F9)
 private val CardShape = RoundedCornerShape(24.dp)
 private val ChipShape = RoundedCornerShape(16.dp)
-private val MutedText = Color(0xFF6B7280)
 private val DateFormatter = DateTimeFormatter.ofPattern("MMM dd", Locale.US)
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,7 +74,7 @@ fun HomeScreen(
     val state by viewModel.state.collectAsStateWithLifecycle()
 
     Scaffold(
-        containerColor = ScreenBackground,
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             CenterAlignedTopAppBar(
                 title = { Text("Subscriptions", fontWeight = FontWeight.Bold) },
@@ -85,14 +83,14 @@ fun HomeScreen(
                         Icon(Icons.Default.Settings, contentDescription = "Settings")
                     }
                 },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = ScreenBackground)
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background)
             )
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddSubscription,
-                containerColor = Color.Black,
-                contentColor = Color.White,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = CircleShape
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Add")
@@ -156,7 +154,7 @@ private fun DashboardHeader(
     onPaidClick: () -> Unit
 ) {
     Surface(
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = CardShape,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -164,7 +162,7 @@ private fun DashboardHeader(
             Text(
                 text = "Total Monthly Spend",
                 style = MaterialTheme.typography.labelMedium,
-                color = MutedText,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontWeight = FontWeight.Medium
             )
             Spacer(modifier = Modifier.height(8.dp))
@@ -253,7 +251,7 @@ private fun DashboardStat(
 @Composable
 private fun EmptyState(onAddSubscription: () -> Unit) {
     Surface(
-        color = Color.White,
+        color = MaterialTheme.colorScheme.surface,
         shape = CardShape,
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -270,13 +268,16 @@ private fun EmptyState(onAddSubscription: () -> Unit) {
             Text(
                 text = "Add your first subscription to start tracking renewals and reminders.",
                 style = MaterialTheme.typography.bodyMedium,
-                color = MutedText
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
             androidx.compose.material3.Button(
                 onClick = onAddSubscription,
                 shape = ChipShape,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Color.Black)
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
             ) {
                 Text("Add subscription", fontWeight = FontWeight.Bold)
             }
@@ -293,8 +294,8 @@ private fun SubscriptionItemView(
     onClick: () -> Unit
 ) {
     val isPaid = item.status == PaymentStatus.PAID
-    val statusColor = item.status.color()
-    val statusBackgroundColor = item.status.backgroundColor()
+    val statusColor = item.status.statusColor()
+    val statusBackgroundColor = item.status.statusBackgroundColor()
     val daysUntil = DateCalculator.daysUntil(item.subscription.nextPaymentDate)
 
     Surface(
@@ -302,10 +303,10 @@ private fun SubscriptionItemView(
         color = when {
             isPaid -> SoftGreen
             item.status == PaymentStatus.DUE_SOON || item.status == PaymentStatus.OVERDUE -> SoftOrange
-            else -> Color.White
+            else -> MaterialTheme.colorScheme.surface
         },
         shape = CardShape,
-        border = if (item.status == PaymentStatus.UPCOMING) BorderStroke(1.dp, Color(0xFFE5E7EB)) else null,
+        border = if (item.status == PaymentStatus.UPCOMING) BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant) else null,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(20.dp)) {
@@ -328,14 +329,14 @@ private fun SubscriptionItemView(
                         Text(
                             text = item.subscription.type.displayName,
                             style = MaterialTheme.typography.labelMedium,
-                            color = MutedText,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
-                        Text(text = "•", color = MutedText)
+                        Text(text = "•", color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Text(
                             text = recurrenceLabel(item.subscription.recurrence),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MutedText,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -360,18 +361,18 @@ private fun SubscriptionItemView(
                         text = formatAmount(item.subscription.amount),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = "per ${recurrenceShortLabel(item.subscription.recurrence)}",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MutedText
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Text(
                     text = daysUntilLabel(daysUntil),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (daysUntil < 0) DeepOrange else MutedText,
+                    color = if (daysUntil < 0) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -387,7 +388,7 @@ private fun SubscriptionItemView(
                     Text(
                         text = "Next payment",
                         style = MaterialTheme.typography.labelMedium,
-                        color = MutedText
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
                         text = item.subscription.nextPaymentDate.format(DateFormatter),
@@ -400,7 +401,7 @@ private fun SubscriptionItemView(
                         onClick = onMarkPaid,
                         modifier = Modifier.size(48.dp)
                     ) {
-                        Icon(Icons.Default.CheckCircle, contentDescription = "Mark Paid", tint = DeepOrange)
+                        Icon(Icons.Default.CheckCircle, contentDescription = "Mark Paid", tint = MaterialTheme.colorScheme.onSurface)
                     }
                 } else {
                     Switch(
@@ -415,7 +416,7 @@ private fun SubscriptionItemView(
                 Text(
                     text = "Renewal is disabled",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MutedText
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -463,16 +464,18 @@ private fun PaymentStatus.label(): String {
     return name.lowercase().replace("_", " ")
 }
 
-private fun PaymentStatus.color(): Color {
+@Composable
+private fun PaymentStatus.statusColor(): Color {
     return when (this) {
         PaymentStatus.PAID -> DeepGreen
-        PaymentStatus.OVERDUE -> DeepOrange
+        PaymentStatus.OVERDUE -> MaterialTheme.colorScheme.error
         PaymentStatus.DUE_SOON -> DeepOrange
         PaymentStatus.UPCOMING -> DeepBlue
     }
 }
 
-private fun PaymentStatus.backgroundColor(): Color {
+@Composable
+private fun PaymentStatus.statusBackgroundColor(): Color {
     return when (this) {
         PaymentStatus.PAID -> SoftGreen
         PaymentStatus.OVERDUE -> SoftOrange

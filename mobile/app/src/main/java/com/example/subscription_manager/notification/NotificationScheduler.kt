@@ -1,26 +1,21 @@
 package com.example.subscription_manager.notification
 
+import android.app.AlarmManager
+import android.app.PendingIntent
 import android.content.Context
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.ExistingWorkPolicy
-import androidx.work.OneTimeWorkRequest
-import androidx.work.OneTimeWorkRequestBuilder
-import androidx.work.PeriodicWorkRequest
-import androidx.work.PeriodicWorkRequestBuilder
+import android.content.Intent
+import android.os.Build
+import android.util.Log
 import androidx.work.WorkManager
-import androidx.work.workDataOf
 import com.example.subscription_manager.data.preferences.UserPreferencesStore
-import com.example.subscription_manager.data.worker.NotificationCheckWorker
-import com.example.subscription_manager.data.worker.ReminderNotificationWorker
+import com.example.subscription_manager.domain.model.ReminderTime
 import com.example.subscription_manager.domain.model.Subscription
 import com.example.subscription_manager.domain.repository.SubscriptionRepository
-import com.example.subscription_manager.domain.utils.DateCalculator
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
-import java.time.Duration
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -30,38 +25,11 @@ class NotificationScheduler @Inject constructor(
     private val preferencesStore: UserPreferencesStore,
     private val repository: SubscriptionRepository
 ) {
+    private val alarmManager = context.getSystemService(AlarmManager::class.java)
     private val workManager = WorkManager.getInstance(context)
 
     suspend fun scheduleSubscription(subscription: Subscription) {
-        val reminderTime = preferencesStore.reminderTimeFlow.first()
-        val zone = ZoneId.systemDefault()
-        val nextPaymentDate = subscription.nextPaymentDate
-
-        (0..DateCalculator.ReminderLeadDays).forEach { daysBefore ->
-            val targetDate = nextPaymentDate.minusDays(daysBefore.toLong())
-            val targetDateTime = targetDate.atTime(reminderTime.hour, reminderTime.minute)
-            val delayMillis = Duration.between(LocalDateTime.now(zone), targetDateTime.atZone(zone)).toMillis()
-
-            if (delayMillis >= 0L) {
-                val request = OneTimeWorkRequestBuilder<ReminderNotificationWorker>()
-                    .setInitialDelay(delayMillis, TimeUnit.MILLISECONDS)
-                    .addTag(tagsForSubscription(subscription.id))
-                    .addTag(TAG_REMINDER)
-                    .setInputData(
-                        workDataOf(
-                            KEY_SUBSCRIPTION_ID to subscription.id,
-                            KEY_CYCLE_KEY to DateCalculator.cycleKeyForDate(nextPaymentDate, subscription.recurrence)
-                        )
-                    )
-                    .build()
-
-                workManager.enqueueUniqueWork(
-                    uniqueWorkName(subscription.id, daysBefore),
-                    ExistingWorkPolicy.REPLACE,
-                    request
-                )
-            }
-        }
+        rescheduleAllReminders()
     }
 
     suspend fun scheduleSubscription(id: Long) {
@@ -70,40 +38,84 @@ class NotificationScheduler @Inject constructor(
     }
 
     suspend fun rescheduleAllReminders() {
-        workManager.cancelAllWorkByTag(TAG_REMINDER)
-        repository.subscriptions.first().forEach { scheduleSubscription(it) }
-        enqueueNotificationCheck()
+        cancelLegacyWorkManagerReminders()
+
+        val reminderTime = preferencesStore.reminderTimeFlow.first()
+        Log.d(TAG, "Rescheduling reminder alarm for reminderTime=$reminderTime")
+        scheduleReminderAlarm(reminderTime)
+    }
+
+    fun scheduleReminderAlarm(reminderTime: ReminderTime) {
+        cancelReminderAlarm()
+
+        val triggerAtMillis = nextTriggerAtMillis(reminderTime)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            Log.w(TAG, "Exact alarm permission is not granted; alarm may be treated as inexact")
+        }
+
+        alarmManager.setExactAlarm(
+            type = AlarmManager.RTC_WAKEUP,
+            triggerAtMillis = triggerAtMillis,
+            operation = reminderPendingIntent()
+        )
+        Log.d(TAG, "Scheduled reminder alarm for triggerAtMillis=$triggerAtMillis")
+    }
+
+    fun cancelReminderAlarm() {
+        alarmManager.cancel(reminderPendingIntent())
     }
 
     fun cancelSubscriptionReminders(id: Long) {
-        workManager.cancelAllWorkByTag(tagsForSubscription(id))
+        // Reminder alarms are shared and driven by the daily reminderTime.
     }
 
-    fun enqueueNotificationCheck() {
-        val request: PeriodicWorkRequest = PeriodicWorkRequestBuilder<NotificationCheckWorker>(
-            repeatInterval = 1L,
-            repeatIntervalTimeUnit = TimeUnit.DAYS
+    private fun cancelLegacyWorkManagerReminders() {
+        workManager.cancelAllWorkByTag(TAG_REMINDER)
+        workManager.cancelUniqueWork(UNIQUE_NOTIFICATION_CHECK)
+    }
+
+    private fun reminderPendingIntent(): PendingIntent {
+        val intent = Intent(context, ReminderAlarmReceiver::class.java).apply {
+            action = ACTION_REMINDER_ALARM
+        }
+
+        return PendingIntent.getBroadcast(
+            context,
+            REQUEST_CODE_REMINDER_ALARM,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
-            .setInitialDelay(15L, TimeUnit.MINUTES)
-            .addTag(TAG_NOTIFICATION_CHECK)
-            .build()
-
-        workManager.enqueueUniquePeriodicWork(
-            UNIQUE_NOTIFICATION_CHECK,
-            ExistingPeriodicWorkPolicy.KEEP,
-            request
-        )
     }
 
-    private fun uniqueWorkName(subscriptionId: Long, daysBefore: Int): String {
-        return "subscription_reminder_${subscriptionId}_$daysBefore"
+    private fun nextTriggerAtMillis(reminderTime: ReminderTime): Long {
+        val zone = ZoneId.systemDefault()
+        val now = LocalDateTime.now(zone)
+        var trigger = LocalDate.now(zone).atTime(reminderTime.hour, reminderTime.minute)
+
+        if (!trigger.isAfter(now)) {
+            trigger = trigger.plusDays(1)
+        }
+
+        return trigger.atZone(zone).toInstant().toEpochMilli()
     }
 
-    private fun tagsForSubscription(subscriptionId: Long): String {
-        return "subscription_$subscriptionId"
+    private fun AlarmManager.setExactAlarm(
+        type: Int,
+        triggerAtMillis: Long,
+        operation: PendingIntent
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            setExactAndAllowWhileIdle(type, triggerAtMillis, operation)
+        } else {
+            setExact(type, triggerAtMillis, operation)
+        }
     }
 
     companion object {
+        private const val TAG = "NotificationScheduler"
+        const val ACTION_REMINDER_ALARM = "com.example.subscription_manager.action.REMINDER_ALARM"
+        const val REQUEST_CODE_REMINDER_ALARM = 1001
+
         const val TAG_REMINDER = "tag_reminder"
         const val TAG_NOTIFICATION_CHECK = "tag_notification_check"
         const val UNIQUE_NOTIFICATION_CHECK = "unique_notification_check"
