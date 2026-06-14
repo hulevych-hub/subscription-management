@@ -3,9 +3,10 @@ package com.example.subscription_manager.notification
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import dagger.hilt.android.AndroidEntryPoint
+import androidx.core.app.NotificationManagerCompat
 import com.example.subscription_manager.domain.usecases.MarkPaidUseCase
 import com.example.subscription_manager.notification.NotificationScheduler
+import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -32,7 +33,12 @@ class MarkPaidBroadcastReceiver : BroadcastReceiver() {
             markPaidUseCase(subscriptionId)
             scheduler.cancelSubscriptionReminders(subscriptionId)
             scheduler.scheduleSubscription(subscriptionId)
+            NotificationManagerCompat.from(context).cancel(notificationId(subscriptionId))
         }
+    }
+
+    private fun notificationId(subscriptionId: Long): Int {
+        return (subscriptionId % Int.MAX_VALUE).toInt()
     }
 
     companion object {
