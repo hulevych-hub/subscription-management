@@ -123,7 +123,11 @@ fun HomeScreen(
 
             if (state.items.isEmpty() && !state.isLoading) {
                 item {
-                    EmptyState(onAddSubscription = onAddSubscription)
+                    EmptyState(
+                        activeFilter = state.activeFilter,
+                        totalCount = state.totalCount,
+                        onAddSubscription = onAddSubscription
+                    )
                 }
             }
 
@@ -249,7 +253,28 @@ private fun DashboardStat(
 }
 
 @Composable
-private fun EmptyState(onAddSubscription: () -> Unit) {
+private fun EmptyState(
+    activeFilter: HomeFilter,
+    totalCount: Int,
+    onAddSubscription: () -> Unit
+) {
+    val title = if (totalCount == 0) {
+        "No subscriptions yet"
+    } else {
+        when (activeFilter) {
+            HomeFilter.ALL -> "No subscriptions found"
+            HomeFilter.THIS_MONTH -> "No subscriptions due this month"
+            HomeFilter.DUE_SOON -> "No subscriptions due soon"
+            HomeFilter.PAID -> "No paid subscriptions"
+        }
+    }
+
+    val message = if (totalCount == 0) {
+        "Add your first subscription to start tracking renewals and reminders."
+    } else {
+        "Try another filter or update payment status."
+    }
+
     Surface(
         color = MaterialTheme.colorScheme.surface,
         shape = CardShape,
@@ -260,26 +285,28 @@ private fun EmptyState(onAddSubscription: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text(
-                text = "No subscriptions yet",
+                text = title,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Add your first subscription to start tracking renewals and reminders.",
+                text = message,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            androidx.compose.material3.Button(
-                onClick = onAddSubscription,
-                shape = ChipShape,
-                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Text("Add subscription", fontWeight = FontWeight.Bold)
+            if (totalCount == 0) {
+                Spacer(modifier = Modifier.height(16.dp))
+                androidx.compose.material3.Button(
+                    onClick = onAddSubscription,
+                    shape = ChipShape,
+                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
+                ) {
+                    Text("Add subscription", fontWeight = FontWeight.Bold)
+                }
             }
         }
     }
