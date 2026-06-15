@@ -571,7 +571,7 @@ private fun filterBackgroundColor(filter: HomeFilter): Color {
         HomeFilter.ALL -> if (isDarkTheme()) DarkSoftBlue else SoftBlue
         HomeFilter.THIS_MONTH -> if (isDarkTheme()) DarkSoftPurple else SoftPurple
         HomeFilter.DUE_SOON -> if (isDarkTheme()) DarkSoftOrange else SoftOrange
-        HomeFilter.TRIAL -> if (isDarkTheme()) DarkSoftPurple else SoftPurple
+        HomeFilter.TRIAL -> if (isDarkTheme()) DarkSoftOrange else Color(0xFFFFD8A8)
         HomeFilter.PAID -> if (isDarkTheme()) DarkSoftGreen else SoftGreen
     }
 }
