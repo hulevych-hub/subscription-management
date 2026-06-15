@@ -36,7 +36,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -155,6 +158,16 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            Text(
+                text = "Copyright © 2026 Hulevych Enterprises. All rights to cuddle Vanessa Baron reserved.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                fontSize = 10.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 }
