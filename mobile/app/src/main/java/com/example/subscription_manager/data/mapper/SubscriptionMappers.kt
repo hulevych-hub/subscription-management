@@ -44,8 +44,8 @@ fun SubscriptionForm.toEntity(
     existing: SubscriptionEntity?,
     nowMillis: Long
 ): SubscriptionEntity {
-    val safePaymentDay = paymentDay.coerceIn(1, 31)
-    val safePaymentMonth = paymentMonth.coerceIn(1, 12)
+    val safePaymentDay = paymentDay?.coerceIn(1, 31) ?: 1
+    val safePaymentMonth = paymentMonth?.coerceIn(1, 12) ?: 1
     val paymentScheduleChanged = existing == null || !DateCalculator.samePaymentSchedule(
         leftPaymentDay = existing.paymentDay,
         leftPaymentMonth = existing.paymentMonth,

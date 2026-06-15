@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.subscription_manager.domain.model.HomeSubscriptionItem
 import com.example.subscription_manager.domain.model.PaymentStatus
 import com.example.subscription_manager.domain.model.Recurrence
+import com.example.subscription_manager.domain.model.SubscriptionType
 import com.example.subscription_manager.domain.usecases.GetSubscriptionsUseCase
 import com.example.subscription_manager.domain.usecases.MarkPaidUseCase
 import com.example.subscription_manager.domain.usecases.MarkUnpaidUseCase
@@ -24,6 +25,7 @@ enum class HomeFilter {
     ALL,
     THIS_MONTH,
     DUE_SOON,
+    TRIAL,
     PAID
 }
 
@@ -34,6 +36,7 @@ data class HomeUiState(
     val totalCount: Int = 0,
     val thisMonthCount: Int = 0,
     val dueSoonCount: Int = 0,
+    val trialCount: Int = 0,
     val paidCount: Int = 0,
     val activeFilter: HomeFilter = HomeFilter.ALL
 )
@@ -70,6 +73,7 @@ class HomeViewModel @Inject constructor(
                 totalCount = homeItems.size,
                 thisMonthCount = homeItems.count { it.isUnpaidThisMonth() },
                 dueSoonCount = homeItems.count { it.status == PaymentStatus.DUE_SOON || it.status == PaymentStatus.OVERDUE },
+                trialCount = homeItems.count { it.subscription.type == SubscriptionType.TRIAL },
                 paidCount = homeItems.count { it.status == PaymentStatus.PAID },
                 activeFilter = activeFilter
             )
@@ -111,6 +115,7 @@ private fun HomeSubscriptionItem.matchesFilter(filter: HomeFilter): Boolean {
         HomeFilter.ALL -> true
         HomeFilter.THIS_MONTH -> isUnpaidThisMonth()
         HomeFilter.DUE_SOON -> status == PaymentStatus.DUE_SOON || status == PaymentStatus.OVERDUE
+        HomeFilter.TRIAL -> subscription.type == SubscriptionType.TRIAL
         HomeFilter.PAID -> status == PaymentStatus.PAID
     }
 }

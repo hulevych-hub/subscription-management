@@ -136,8 +136,21 @@ fun AddEditScreen(
                 OutlinedTextField(
                     value = form.name,
                     onValueChange = { viewModel.updateForm { copy(name = it) } },
-                    label = { Text("Subscription Name") },
+                    label = { Text("Name") },
+                    isError = form.name.isBlank(),
+                    supportingText = {
+                        if (form.name.isBlank()) {
+                            Text("Name is required")
+                        }
+                    },
                     modifier = Modifier.fillMaxWidth()
+                )
+
+                FormSectionTitle("Type")
+                ChoiceRow(
+                    options = SubscriptionType.entries.map { it.displayName },
+                    selectedIndex = SubscriptionType.entries.indexOf(form.type),
+                    onOptionSelected = { viewModel.updateForm { copy(type = SubscriptionType.entries[it]) } }
                 )
 
                 OutlinedTextField(
@@ -160,36 +173,43 @@ fun AddEditScreen(
 
                 // Replaced Slider with cleaner Number Input
                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    val maxDaysInMonth = YearMonth.of(LocalDate.now().year, form.paymentMonth.coerceIn(1, 12)).lengthOfMonth()
+                    val maxDaysInMonth = maxDaysForPaymentDay(form)
 
                     // 2. Apply this to your Day TextField
+                    val dayError = dayValidationError(form.paymentDay, maxDaysInMonth)
+
                     OutlinedTextField(
-                        value = form.paymentDay.toString(),
+                        value = form.paymentDay?.toString().orEmpty(),
                         onValueChange = { input ->
                             val numericInput = input.filter { it.isDigit() }.toIntOrNull()
-
-                            // Clamp based on the dynamic maxDaysInMonth (e.g., 28 for Feb)
-                            val clampedValue = numericInput?.coerceIn(1, maxDaysInMonth) ?: 1
-
-                            viewModel.updateForm { copy(paymentDay = clampedValue) }
+                            viewModel.updateForm { copy(paymentDay = numericInput) }
                         },
-                        label = { Text("Day (1-$maxDaysInMonth)") }, // Displays dynamic limit to user
+                        label = { Text("Day (1-$maxDaysInMonth)") },
+                        isError = dayError != null,
+                        supportingText = {
+                            if (dayError != null) {
+                                Text(dayError)
+                            }
+                        },
                         modifier = Modifier.weight(1f)
                     )
 
                     if (form.recurrence == Recurrence.ANNUAL) {
                         OutlinedTextField(
-                            value = form.paymentMonth.toString(),
+                            value = form.paymentMonth?.toString().orEmpty(),
                             onValueChange = { input ->
-                                // 1. Only allow numeric input
                                 val numericInput = input.filter { it.isDigit() }.toIntOrNull()
+                                val monthValue = numericInput?.coerceIn(1, 12)
 
-                                // 2. Clamp the value between 1 and 31
-                                val clampedValue = numericInput?.coerceIn(1, 12) ?: 1
-
-                                viewModel.updateForm { copy(paymentMonth = clampedValue) }
+                                viewModel.updateForm { copy(paymentMonth = monthValue) }
                             },
                             label = { Text("Month") },
+                            isError = form.paymentMonth == null,
+                            supportingText = {
+                                if (form.paymentMonth == null) {
+                                    Text("Month is required")
+                                }
+                            },
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -202,7 +222,15 @@ fun AddEditScreen(
                 ChoiceRow(
                     options = Recurrence.entries.map { it.displayName },
                     selectedIndex = Recurrence.entries.indexOf(form.recurrence),
-                    onOptionSelected = { viewModel.updateForm { copy(recurrence = Recurrence.entries[it]) } }
+                    onOptionSelected = { selectedIndex ->
+                        val recurrence = Recurrence.entries[selectedIndex]
+                        viewModel.updateForm {
+                            copy(
+                                recurrence = recurrence,
+                                paymentMonth = if (recurrence == Recurrence.MONTHLY) null else paymentMonth
+                            )
+                        }
+                    }
                 )
 
                 DateSelectionRow("Start Date", form.startDate, { showStartDatePicker = true }, { viewModel.updateForm { copy(startDate = null) } })
@@ -318,7 +346,31 @@ private fun validateForm(
 ): String? {
     return form.name.takeIf { it.isBlank() }
         ?.let { "Name is required" }
+        ?: annualMonthValidationError(form)
+        ?: dayValidationError(form.paymentDay, maxDaysForPaymentDay(form))
         ?: amountValidationError(amountInput)
+}
+
+private fun annualMonthValidationError(form: com.example.subscription_manager.domain.model.SubscriptionForm): String? {
+    return form.recurrence.takeIf { it == Recurrence.ANNUAL }
+        ?.takeIf { form.paymentMonth == null }
+        ?.let { "Month is required" }
+}
+
+private fun maxDaysForPaymentDay(form: com.example.subscription_manager.domain.model.SubscriptionForm): Int {
+    return if (form.recurrence == Recurrence.ANNUAL && form.paymentMonth != null) {
+        YearMonth.of(LocalDate.now().year, form.paymentMonth).lengthOfMonth()
+    } else {
+        31
+    }
+}
+
+private fun dayValidationError(paymentDay: Int?, maxDay: Int): String? {
+    return when {
+        paymentDay == null -> "Day is required"
+        paymentDay !in 1..maxDay -> "Day must be between 1 and $maxDay"
+        else -> null
+    }
 }
 
 private fun amountValidationError(amountInput: String): String? {

@@ -5,6 +5,7 @@ package com.example.subscription_manager.ui.screens.home
 import android.annotation.SuppressLint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -69,6 +70,7 @@ import kotlin.math.absoluteValue
 private val CardShape = RoundedCornerShape(24.dp)
 private val ChipShape = RoundedCornerShape(16.dp)
 private val DateFormatter = DateTimeFormatter.ofPattern("MMM dd", Locale.US)
+private val DateRangeFormatter = DateTimeFormatter.ofPattern("dd-MMMM-yyyy", Locale.US)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -104,48 +106,60 @@ fun HomeScreen(
             }
         }
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(paddingValues),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            item {
-                if (state.isLoading) {
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
                     CircularProgressIndicator()
-                } else {
-                    DashboardHeader(
-                        total = state.totalSpend,
-                        totalCount = state.totalCount,
-                        dueCount = state.dueSoonCount,
-                        thisMonthCount = state.thisMonthCount,
-                        paidCount = state.paidCount,
-                        activeFilter = state.activeFilter,
-                        onSubscriptionsClick = { viewModel.toggleFilter(HomeFilter.ALL) },
-                        onThisMonthClick = { viewModel.toggleFilter(HomeFilter.THIS_MONTH) },
-                        onDueSoonClick = { viewModel.toggleFilter(HomeFilter.DUE_SOON) },
-                        onPaidClick = { viewModel.toggleFilter(HomeFilter.PAID) }
-                    )
                 }
-            }
-
-            if (state.items.isEmpty() && !state.isLoading) {
-                item {
-                    EmptyState(
-                        activeFilter = state.activeFilter,
-                        totalCount = state.totalCount,
-                        onAddSubscription = onAddSubscription
-                    )
-                }
-            }
-
-            items(state.items, key = { it.subscription.id }) { item ->
-                SubscriptionItemView(
-                    item = item,
-                    onToggleRenewal = { viewModel.toggleRenewal(item.subscription.id) },
-                    onMarkPaid = { viewModel.markPaid(item.subscription.id) },
-                    onMarkUnpaid = { viewModel.markUnpaid(item.subscription.id) },
-                    onClick = { onEditSubscription(item.subscription.id) }
+            } else {
+                DashboardHeader(
+                    total = state.totalSpend,
+                    totalCount = state.totalCount,
+                    dueCount = state.dueSoonCount,
+                    thisMonthCount = state.thisMonthCount,
+                    trialCount = state.trialCount,
+                    paidCount = state.paidCount,
+                    activeFilter = state.activeFilter,
+                    onSubscriptionsClick = { viewModel.toggleFilter(HomeFilter.ALL) },
+                    onThisMonthClick = { viewModel.toggleFilter(HomeFilter.THIS_MONTH) },
+                    onDueSoonClick = { viewModel.toggleFilter(HomeFilter.DUE_SOON) },
+                    onTrialClick = { viewModel.toggleFilter(HomeFilter.TRIAL) },
+                    onPaidClick = { viewModel.toggleFilter(HomeFilter.PAID) }
                 )
+
+                LazyColumn(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    if (state.items.isEmpty()) {
+                        item {
+                            EmptyState(
+                                activeFilter = state.activeFilter,
+                                totalCount = state.totalCount,
+                                onAddSubscription = onAddSubscription
+                            )
+                        }
+                    }
+
+                    items(state.items, key = { it.subscription.id }) { item ->
+                        SubscriptionItemView(
+                            item = item,
+                            onToggleRenewal = { viewModel.toggleRenewal(item.subscription.id) },
+                            onMarkPaid = { viewModel.markPaid(item.subscription.id) },
+                            onMarkUnpaid = { viewModel.markUnpaid(item.subscription.id) },
+                            onClick = { onEditSubscription(item.subscription.id) }
+                        )
+                    }
+                }
             }
         }
     }
@@ -157,11 +171,13 @@ private fun DashboardHeader(
     totalCount: Int,
     dueCount: Int,
     thisMonthCount: Int,
+    trialCount: Int,
     paidCount: Int,
     activeFilter: HomeFilter,
     onSubscriptionsClick: () -> Unit,
     onThisMonthClick: () -> Unit,
     onDueSoonClick: () -> Unit,
+    onTrialClick: () -> Unit,
     onPaidClick: () -> Unit
 ) {
     Surface(
@@ -189,7 +205,7 @@ private fun DashboardHeader(
             ) {
                 DashboardStat(
                     value = totalCount.toString(),
-                    label = "Subscriptions",
+                    label = "All",
                     color = MaterialTheme.colorScheme.primary,
                     backgroundColor = filterBackgroundColor(HomeFilter.ALL),
                     selected = activeFilter == HomeFilter.ALL,
@@ -210,6 +226,14 @@ private fun DashboardHeader(
                     backgroundColor = filterBackgroundColor(HomeFilter.DUE_SOON),
                     selected = activeFilter == HomeFilter.DUE_SOON,
                     onClick = onDueSoonClick
+                )
+                DashboardStat(
+                    value = trialCount.toString(),
+                    label = "Trial",
+                    color = MaterialTheme.colorScheme.tertiary,
+                    backgroundColor = filterBackgroundColor(HomeFilter.TRIAL),
+                    selected = activeFilter == HomeFilter.TRIAL,
+                    onClick = onTrialClick
                 )
                 DashboardStat(
                     value = paidCount.toString(),
@@ -272,6 +296,7 @@ private fun EmptyState(
             HomeFilter.ALL -> "No subscriptions found"
             HomeFilter.THIS_MONTH -> "No subscriptions due this month"
             HomeFilter.DUE_SOON -> "No subscriptions due soon"
+            HomeFilter.TRIAL -> "No trial subscriptions"
             HomeFilter.PAID -> "No paid subscriptions"
         }
     }
@@ -355,6 +380,11 @@ private fun SubscriptionItemView(
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
+                    Text(
+                        text = dateRangeLabel(item.subscription.startDate, item.subscription.endDate),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                     Spacer(modifier = Modifier.height(6.dp))
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -390,7 +420,9 @@ private fun SubscriptionItemView(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom
             ) {
-                Column {
+                Row(
+                    verticalAlignment = Alignment.Bottom
+                ) {
                     Text(
                         text = formatAmount(item.subscription.amount),
                         style = MaterialTheme.typography.headlineMedium,
@@ -398,8 +430,8 @@ private fun SubscriptionItemView(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
-                        text = "per ${recurrenceShortLabel(item.subscription.recurrence)}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        text = recurrenceAmountSuffix(item.subscription.recurrence),
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
@@ -539,6 +571,7 @@ private fun filterBackgroundColor(filter: HomeFilter): Color {
         HomeFilter.ALL -> if (isDarkTheme()) DarkSoftBlue else SoftBlue
         HomeFilter.THIS_MONTH -> if (isDarkTheme()) DarkSoftPurple else SoftPurple
         HomeFilter.DUE_SOON -> if (isDarkTheme()) DarkSoftOrange else SoftOrange
+        HomeFilter.TRIAL -> if (isDarkTheme()) DarkSoftPurple else SoftPurple
         HomeFilter.PAID -> if (isDarkTheme()) DarkSoftGreen else SoftGreen
     }
 }
@@ -550,11 +583,15 @@ private fun recurrenceLabel(recurrence: Recurrence): String {
     }
 }
 
-private fun recurrenceShortLabel(recurrence: Recurrence): String {
+private fun recurrenceAmountSuffix(recurrence: Recurrence): String {
     return when (recurrence) {
-        Recurrence.MONTHLY -> "month"
-        Recurrence.ANNUAL -> "year"
+        Recurrence.MONTHLY -> "/month"
+        Recurrence.ANNUAL -> "/year"
     }
+}
+
+private fun dateRangeLabel(startDate: java.time.LocalDate?, endDate: java.time.LocalDate?): String {
+    return "${startDate?.format(DateRangeFormatter) ?: "—"} / ${endDate?.format(DateRangeFormatter) ?: "—"}"
 }
 
 private fun daysUntilLabel(daysUntil: Long): String {

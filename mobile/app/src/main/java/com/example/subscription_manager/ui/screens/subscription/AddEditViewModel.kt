@@ -3,6 +3,7 @@ package com.example.subscription_manager.ui.screens.subscription
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.subscription_manager.domain.model.Recurrence
 import com.example.subscription_manager.domain.model.SubscriptionForm
 import com.example.subscription_manager.domain.usecases.DeleteSubscriptionUseCase
 import com.example.subscription_manager.domain.usecases.GetSubscriptionUseCase
@@ -80,7 +81,7 @@ class AddEditViewModel @Inject constructor(
                             startDate = it.startDate,
                             endDate = it.endDate,
                             paymentDay = it.paymentDay,
-                            paymentMonth = it.paymentMonth,
+                            paymentMonth = if (it.recurrence == Recurrence.ANNUAL) it.paymentMonth else null,
                             recurrence = it.recurrence,
                             renewalEnabled = it.renewalEnabled
                         ),

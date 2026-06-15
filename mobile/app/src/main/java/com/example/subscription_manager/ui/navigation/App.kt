@@ -9,11 +9,15 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.subscription_manager.ui.screens.home.HomeScreen
 import com.example.subscription_manager.ui.screens.settings.SettingsScreen
+import com.example.subscription_manager.ui.screens.splash.ColdStartSplashController
+import com.example.subscription_manager.ui.screens.splash.SplashScreen
 import com.example.subscription_manager.ui.screens.subscription.AddEditScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
 sealed class Route {
+    @Serializable
+    data object Splash : Route()
     @Serializable
     data object Home : Route()
     @Serializable
@@ -33,11 +37,28 @@ fun App(
     navController: NavHostController,
     modifier: Modifier = Modifier
 ) {
+    val startDestination = if (ColdStartSplashController.shouldShowSplash()) {
+        Route.Splash
+    } else {
+        Route.Home
+    }
+
     NavHost(
         navController = navController,
         modifier = modifier,
-        startDestination = Route.Home
+        startDestination = startDestination
     ) {
+        composable<Route.Splash> {
+            SplashScreen(
+                onFinished = {
+                    navController.navigate(Route.Home) {
+                        popUpTo<Route.Splash> {
+                            inclusive = true
+                        }
+                    }
+                }
+            )
+        }
         composable<Route.Home> {
             HomeScreen(
                 onAddSubscription = {

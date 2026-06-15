@@ -10,8 +10,8 @@ data class SubscriptionForm(
     val notes: String = "",
     val startDate: LocalDate? = null,
     val endDate: LocalDate? = null,
-    val paymentDay: Int = 1,
-    val paymentMonth: Int = LocalDate.now().monthValue,
+    val paymentDay: Int? = null,
+    val paymentMonth: Int? = null,
     val recurrence: Recurrence = Recurrence.MONTHLY,
     val renewalEnabled: Boolean = true
 )

@@ -1,0 +1,1 @@
+At the end of the tasks, generate a subscription-manager.apk to the C:\Users\serhi\Documents\Development\desktop-android-sharing folder
