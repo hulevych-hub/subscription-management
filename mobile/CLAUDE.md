@@ -223,3 +223,17 @@ On Windows PowerShell, use:
 ```powershell
 .\gradlew assembleDebug
 ```
+
+## Development rule
+
+At the end of code changes, verify the app builds and runs successfully. After that, generate `subscription-manager.apk` into:
+
+```text
+C:\Users\serhi\Documents\Development\desktop-android-sharing
+```
+
+Use this PowerShell command to copy the debug APK there:
+
+```powershell
+Copy-Item ".\app\build\outputs\apk\debug\app-debug.apk" "C:\Users\serhi\Documents\Development\desktop-android-sharing\subscription-manager.apk" -Force
+```

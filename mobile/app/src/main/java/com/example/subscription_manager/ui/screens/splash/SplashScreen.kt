@@ -1,23 +1,17 @@
 package com.example.subscription_manager.ui.screens.splash
 
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,52 +24,49 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.PathFillType
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.zIndex
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.Spring
-import androidx.compose.ui.draw.scale
-import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 
 private const val LOADING_DURATION_MS = 5_000L
 private const val FINAL_HOLD_DURATION_MS = 5_000L
-private const val TEXT_TRANSITION_IN_MS = 300
-private const val TEXT_TRANSITION_OUT_MS = 200
 
 private const val LOADING_MESSAGE = "Wait, Serhiy is calculating.."
-private const val FINAL_MESSAGE = "Calculation complete! And the result is: You're the best, Vanessa Baron. ❤️"
+private const val FINAL_MESSAGE = "CALCULATION COMPLETE\nAnd the result is: You’re the best,\nVanessa Baron. ❤️"
+
+private val SplashBackground = Color(0xFF15191D)
+private val HeartRedTop = Color(0xFFFF4B5F)
+private val HeartRedMiddle = Color(0xFFD7193E)
+private val HeartRedBottom = Color(0xFFA9061F)
+private val HeartOutline = Color(0xFFC9CED3)
+private val HeartShadow = Color(0x55000000)
+private val TextWhite = Color(0xFFF8F8F8)
+private val SubtleText = Color(0xFFE8E8E8)
+private val SparkleColor = Color(0xFF6B7280)
 
 @Composable
 fun SplashScreen(
     onFinished: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var hasFinished by remember { mutableStateOf(false) }
-    var isComplete by remember { mutableStateOf(false) }
-    var message by remember { mutableStateOf(LOADING_MESSAGE) }
+    val hasFinished = remember { mutableStateOf(false) }
     var progress by remember { mutableFloatStateOf(0f) }
-
-    val heartScale by animateFloatAsState(
-        targetValue = if (isComplete) 1.08f else 1f,
-        animationSpec = spring(
-            stiffness = Spring.StiffnessLow,
-            dampingRatio = Spring.DampingRatioMediumBouncy
-        ),
-        label = "SplashHeartScale"
-    )
+    var message by remember { mutableStateOf(LOADING_MESSAGE) }
 
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(16)
-
         val fillStartNanos = System.nanoTime()
         val loadingDurationNanos = LOADING_DURATION_MS * 1_000_000L
 
@@ -83,186 +74,197 @@ fun SplashScreen(
             val elapsedSinceFillStart = System.nanoTime() - fillStartNanos
             progress = (elapsedSinceFillStart.toFloat() / loadingDurationNanos.toFloat()).coerceIn(0f, 1f)
             if (progress >= 1f) break
-            kotlinx.coroutines.delay(16)
+            delay(16)
         }
 
-        if (!hasFinished) {
-            isComplete = true
+        if (!hasFinished.value) {
             message = FINAL_MESSAGE
         }
 
-        kotlinx.coroutines.delay(TEXT_TRANSITION_IN_MS + FINAL_HOLD_DURATION_MS)
-        if (!hasFinished) {
-            hasFinished = true
+        delay(FINAL_HOLD_DURATION_MS)
+        if (!hasFinished.value) {
+            hasFinished.value = true
             onFinished()
         }
     }
 
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(SplashBackground)
             .pointerInput(onFinished) {
                 detectTapGestures {
-                    if (!hasFinished) {
-                        hasFinished = true
+                    if (!hasFinished.value) {
+                        hasFinished.value = true
                         onFinished()
                     }
                 }
-            },
-        contentAlignment = Alignment.Center
-    ) {
-        Column(
-            modifier = Modifier.padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            HeartProgressIndicator(
-                progress = progress,
-                modifier = Modifier
-                    .size(168.dp)
-                    .scale(heartScale)
-            )
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            AnimatedContent(
-                targetState = message,
-                label = "SplashMessage",
-                transitionSpec = {
-                    (fadeIn(animationSpec = tween(TEXT_TRANSITION_IN_MS)) +
-                        scaleIn(
-                            initialScale = 0.92f,
-                            animationSpec = tween(TEXT_TRANSITION_IN_MS)
-                        )) togetherWith
-                        (fadeOut(animationSpec = tween(TEXT_TRANSITION_OUT_MS)) +
-                            scaleOut(
-                                targetScale = 1.08f,
-                                animationSpec = tween(TEXT_TRANSITION_OUT_MS)
-                            ))
-                }
-            ) { currentMessage ->
-                Text(
-                    text = currentMessage,
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier
-                        .padding(horizontal = 16.dp)
-                        .zIndex(1f)
-                )
             }
-        }
+    ) {
+        val heartSize = 180.dp
+        val heartCenterY = maxHeight * 0.34f
+        val resultTextTop = heartCenterY + heartSize / 2f + 36.dp
+
+        HeartWithPercentage(
+            progress = progress,
+            isComplete = message == FINAL_MESSAGE,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = heartCenterY - heartSize / 2f)
+                .size(heartSize)
+        )
+
+        ResultText(
+            message = message,
+            isComplete = message == FINAL_MESSAGE,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .offset(y = resultTextTop)
+                .padding(horizontal = 32.dp)
+        )
     }
 }
 
 @Composable
-private fun HeartProgressIndicator(
+private fun HeartWithPercentage(
     progress: Float,
+    isComplete: Boolean,
     modifier: Modifier = Modifier
 ) {
-    val fillRed = Color(0xFFE11D48)
-    val outlineColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-    val emptyHeartColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.18f)
-    val strokeWidth = 5.dp
-    val density = LocalDensity.current
-    val strokeWidthPx = with(density) { strokeWidth.toPx() }
-    val normalizedProgress = progress.coerceIn(0f, 1f)
+    val percentage = if (isComplete) 100 else (progress * 100).toInt()
 
-    Canvas(modifier = modifier) {
-        val sizePx = size.minDimension
-        val heartGeometry = createHeartGeometry(sizePx)
-
-        drawPath(
-            path = heartGeometry.path,
-            color = emptyHeartColor,
-            style = androidx.compose.ui.graphics.drawscope.Fill
-        )
-
-        val fillHeight = (heartGeometry.bottom - heartGeometry.top) * normalizedProgress
-        clipPath(heartGeometry.path) {
-            drawRect(
-                color = fillRed,
-                topLeft = Offset(x = 0f, y = heartGeometry.bottom - fillHeight),
-                size = Size(width = sizePx, height = fillHeight)
-            )
+    Box(
+        modifier = modifier,
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            drawReferenceHeart(progress = progress)
         }
 
-        drawPath(
-            path = heartGeometry.path,
-            color = outlineColor,
-            style = Stroke(width = strokeWidthPx)
+        Text(
+            text = "$percentage%",
+            color = Color.White,
+            fontFamily = FontFamily.Serif,
+            fontSize = 44.sp,
+            textAlign = TextAlign.Center
         )
     }
 }
 
-private data class HeartGeometry(
-    val path: Path,
-    val top: Float,
-    val bottom: Float
-)
+@Composable
+private fun ResultText(
+    message: String,
+    isComplete: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (isComplete) {
+            Text(
+                text = "CALCULATION COMPLETE",
+                color = TextWhite,
+                fontFamily = FontFamily.Serif,
+                fontSize = 21.sp,
+                lineHeight = 28.sp,
+                letterSpacing = 1.4.sp,
+                textAlign = TextAlign.Center
+            )
 
-private fun createHeartGeometry(size: Float): HeartGeometry {
-    val inset = size * 0.08f
-    val width = size - inset * 2
+            Spacer(modifier = Modifier.height(10.dp))
 
-    fun x(ratio: Float): Float = inset + width * ratio
-    fun y(ratio: Float): Float = inset + width * ratio
+            Text(
+                text = buildAnnotatedString {
+                    append("And the result is: You’re the best,\n")
+                    append("Vanessa Baron. ")
+                    withStyle(SpanStyle(color = HeartRedMiddle)) {
+                        append("❤️")
+                    }
+                },
+                color = SubtleText,
+                fontFamily = FontFamily.Serif,
+                fontSize = 19.sp,
+                lineHeight = 26.sp,
+                textAlign = TextAlign.Center
+            )
+        } else {
+            Text(
+                text = message,
+                color = TextWhite,
+                fontFamily = FontFamily.Serif,
+                fontSize = 19.sp,
+                lineHeight = 26.sp,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
 
-    val path = Path().apply {
-        fillType = PathFillType.NonZero
-        moveTo(x(0.50f), y(0.86f))
-        cubicTo(
-            x(0.50f),
-            y(0.86f),
-            x(0.10f),
-            y(0.62f),
-            x(0.10f),
-            y(0.38f)
-        )
-        cubicTo(
-            x(0.10f),
-            y(0.20f),
-            x(0.24f),
-            y(0.08f),
-            x(0.40f),
-            y(0.08f)
-        )
-        cubicTo(
-            x(0.48f),
-            y(0.08f),
-            x(0.54f),
-            y(0.13f),
-            x(0.58f),
-            y(0.20f)
-        )
-        cubicTo(
-            x(0.62f),
-            y(0.13f),
-            x(0.68f),
-            y(0.08f),
-            x(0.76f),
-            y(0.08f)
-        )
-        cubicTo(
-            x(0.92f),
-            y(0.08f),
-            x(1.00f),
-            y(0.20f),
-            x(1.00f),
-            y(0.38f)
-        )
-        cubicTo(
-            x(1.00f),
-            y(0.62f),
-            x(0.50f),
-            y(0.86f),
-            x(0.50f),
-            y(0.86f)
-        )
-        close()
+private fun DrawScope.drawReferenceHeart(
+    progress: Float
+) {
+    val unitWidth = 100f
+    val unitHeight = 86f
+    val scale = size.minDimension * 0.94f / unitWidth
+    val offsetX = (size.width - unitWidth * scale) / 2f
+    val offsetY = (size.height - unitHeight * scale) / 2f
+    val normalizedProgress = progress.coerceIn(0f, 1f)
+    val emptyHeartColor = Color(0xFF20262C)
+
+    val shadowPath = createHeartPath(offsetX, offsetY + 7f * scale, scale)
+    val filledHeartPath = createHeartPath(offsetX, offsetY, scale)
+
+    drawPath(
+        path = shadowPath,
+        color = HeartShadow
+    )
+
+    drawPath(
+        path = filledHeartPath,
+        color = emptyHeartColor
+    )
+
+    if (normalizedProgress > 0f) {
+        val fillHeight = unitHeight * scale * normalizedProgress
+        clipPath(filledHeartPath) {
+            drawRect(
+                brush = Brush.linearGradient(
+                    colors = listOf(HeartRedTop, HeartRedMiddle, HeartRedBottom),
+                    start = Offset(offsetX, offsetY),
+                    end = Offset(offsetX + unitWidth * scale, offsetY + unitHeight * scale)
+                ),
+                topLeft = Offset(offsetX, offsetY + unitHeight * scale - fillHeight),
+                size = Size(width = unitWidth * scale, height = fillHeight)
+            )
+        }
     }
 
-    return HeartGeometry(path = path, top = y(0.08f), bottom = y(0.86f))
+    drawPath(
+        path = filledHeartPath,
+        color = HeartOutline,
+        style = Stroke(width = 4f * scale)
+    )
+}
+
+private fun createHeartPath(offsetX: Float, offsetY: Float, scale: Float): Path {
+    val unitHeight = 86f
+
+    fun x(value: Float): Float = offsetX + value * scale
+    fun y(value: Float): Float = offsetY + value * scale
+
+    return Path().apply {
+        moveTo(x(50f), y(unitHeight))
+        cubicTo(x(24f), y(62f), x(0f), y(42f), x(0f), y(22f))
+        cubicTo(x(0f), y(8f), x(11f), y(0f), x(24f), y(0f))
+        cubicTo(x(34f), y(0f), x(43f), y(6f), x(50f), y(16f))
+        cubicTo(x(57f), y(6f), x(66f), y(0f), x(76f), y(0f))
+        cubicTo(x(89f), y(0f), x(100f), y(8f), x(100f), y(22f))
+        cubicTo(x(100f), y(42f), x(76f), y(62f), x(50f), y(unitHeight))
+        close()
+    }
 }
 
 internal object ColdStartSplashController {
